@@ -97,7 +97,7 @@
             <input v-model="selectedMachine.workHoldingSystem" id="workHoldingSystem" type="text" />
           </div>
           <div>
-            <label for="wireDiamter">Wire Diameter:</label>
+            <label for="wireDiameter">Wire Diameter:</label>
             <input v-model="selectedMachine.wireDiameter" id="wireDiameter" type="text" />
           </div>
           <div>
@@ -120,29 +120,29 @@
         <div v-if="activePage === 'postprocessor'" class="machine-post-processor">
           <div v-if="showHeaderSection" class="post-processor">
             <textarea
-              v-model="selectedMachine.postProcessor"
+              v-model="selectedMachine.postProcessor.header"
               id="postProcessor"
               type="text"
             ></textarea>
           </div>
           <div v-if="showFooterSection" class="post-processor">
             <textarea
-              v-model="selectedMachine.postProcessor"
-              id="postProcessor"
+              v-model="selectedMachine.postProcessor.footer"
+              id="footer"
               type="text"
             ></textarea>
           </div>
           <div v-if="showHolePopSection" class="post-processor">
             <textarea
-              v-model="selectedMachine.postProcessor"
-              id="postProcessor"
+              v-model="selectedMachine.postProcessor.holePop"
+              id="holePop"
               type="text"
             ></textarea>
           </div>
           <div v-if="showPathChangeSection" class="post-processor">
             <textarea
-              v-model="selectedMachine.postProcessor"
-              id="postProcessor"
+              v-model="selectedMachine.postProcessor.pathChange"
+              id="pathChange"
               type="text"
             ></textarea>
           </div>
@@ -184,6 +184,7 @@ export default defineComponent({
     const showPostProcessor = async () => {
       activePage.value = 'postprocessor'
       postProcessor.value = true
+      showHeaderSection.value = true
     }
 
     const showHeader = async () => {
