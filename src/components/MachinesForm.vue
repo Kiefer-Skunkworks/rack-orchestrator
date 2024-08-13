@@ -28,78 +28,124 @@
     </div>
     <div v-if="selectedMachine" class="machine-configure-form">
       <h2>{{ isEditing ? 'Edit' : 'Add' }} Machine</h2>
+      <div class="page-select">
+        <button @click="showMachineSettings" :class="{ active: activePage === 'settings' }">
+          Machine Settings
+        </button>
+        <button @click="showPostProcessor" :class="{ active: activePage === 'postprocessor' }">
+          Machine Post Processor
+        </button>
+      </div>
+      <div v-if="activePage === 'postprocessor'" class="post-processor-sections">
+        <button @click="showHeader" :class="{ active: activeSection === 'header' }">Header</button>
+        <button @click="showFooter" :class="{ active: activeSection === 'footer' }">Footer</button>
+        <button @click="showHolePop" :class="{ active: activeSection === 'holepop' }">
+          Hole Pop
+        </button>
+        <button @click="showPathChange" :class="{ active: activeSection === 'pathchange' }">
+          Path Change
+        </button>
+      </div>
       <form @submit.prevent="saveMachine">
-        <div>
-          <label for="id">ID:</label>
-          <input v-model="selectedMachine.id" id="id" type="text" disabled />
+        <div v-if="activePage === 'settings'" class="machine-settings">
+          <div>
+            <label for="id">ID:</label>
+            <input v-model="selectedMachine.id" id="id" type="text" disabled />
+          </div>
+          <div>
+            <label for="name">Name:</label>
+            <input v-model="selectedMachine.name" id="name" type="text" />
+          </div>
+          <div>
+            <label for="status">Status:</label>
+            <select v-model="selectedMachine.status" id="status">
+              <option value="Running">Running</option>
+              <option value="Idle">Idle</option>
+              <option value="Waiting">Waiting</option>
+            </select>
+          </div>
+          <div>
+            <label for="type">Type:</label>
+            <input v-model="selectedMachine.type" id="type" type="text" />
+          </div>
+          <div>
+            <label for="kinematics">Kinematics:</label>
+            <input v-model="selectedMachine.kinematics" id="kinematics" type="text" />
+          </div>
+          <div>
+            <label for="xMaxTravel">X Travel:</label>
+            <input v-model="selectedMachine.xMaxTravel" id="xMaxTravel" type="text" />
+          </div>
+          <div>
+            <label for="yMaxTravel">Y Travel:</label>
+            <input v-model="selectedMachine.yMaxTravel" id="yMaxTravel" type="text" />
+          </div>
+          <div>
+            <label for="maxWorkPieceX">Max Work Piece X:</label>
+            <input v-model="selectedMachine.maxWorkPieceX" id="maxWorkPieceX" type="text" />
+          </div>
+          <div>
+            <label for="maxWorkPieceY">Max Work Piece Y:</label>
+            <input v-model="selectedMachine.maxWorkPieceY" id="maxWorkPieceY" type="text" />
+          </div>
+          <div>
+            <label for="maxWorkPieceZ">Max Work Piece Z:</label>
+            <input v-model="selectedMachine.maxWorkPieceZ" id="maxWorkPieceZ" type="text" />
+          </div>
+          <div>
+            <label for="workHoldingSystem">Work Holding System:</label>
+            <input v-model="selectedMachine.workHoldingSystem" id="workHoldingSystem" type="text" />
+          </div>
+          <div>
+            <label for="wireDiamter">Wire Diameter:</label>
+            <input v-model="selectedMachine.wireDiameter" id="wireDiameter" type="text" />
+          </div>
+          <div>
+            <label for="wireTension">Wire Tension:</label>
+            <input v-model="selectedMachine.wireTension" id="wireTension" type="text" />
+          </div>
+          <div>
+            <label for="maxWireSpeed">Max Wire Speed:</label>
+            <input v-model="selectedMachine.maxWireSpeed" id="maxWireSpeed" type="text" />
+          </div>
+          <div>
+            <label for="maxWireTension">Max Wire Tension:</label>
+            <input v-model="selectedMachine.maxWireTension" id="maxWireTension" type="text" />
+          </div>
+          <div>
+            <label for="cutKerfRadius">Cut Kerf Radius:</label>
+            <input v-model="selectedMachine.cutKerfRadius" id="cutKerfRadius" type="text" />
+          </div>
         </div>
-        <div>
-          <label for="name">Name:</label>
-          <input v-model="selectedMachine.name" id="name" type="text" />
-        </div>
-        <div>
-          <label for="status">Status:</label>
-          <select v-model="selectedMachine.status" id="status">
-            <option value="Running">Running</option>
-            <option value="Idle">Idle</option>
-            <option value="Waiting">Waiting</option>
-          </select>
-        </div>
-        <div>
-          <label for="type">Type:</label>
-          <input v-model="selectedMachine.type" id="type" type="text" />
-        </div>
-        <div>
-          <label for="kinematics">Kinematics:</label>
-          <input v-model="selectedMachine.kinematics" id="kinematics" type="text" />
-        </div>
-        <div>
-          <label for="xMaxTravel">X Travel:</label>
-          <input v-model="selectedMachine.xMaxTravel" id="xMaxTravel" type="text" />
-        </div>
-        <div>
-          <label for="yMaxTravel">Y Travel:</label>
-          <input v-model="selectedMachine.yMaxTravel" id="yMaxTravel" type="text" />
-        </div>
-        <div>
-          <label for="maxWorkPieceX">Max Work Piece X:</label>
-          <input v-model="selectedMachine.maxWorkPieceX" id="maxWorkPieceX" type="text" />
-        </div>
-        <div>
-          <label for="maxWorkPieceY">Max Work Piece Y:</label>
-          <input v-model="selectedMachine.maxWorkPieceY" id="maxWorkPieceY" type="text" />
-        </div>
-        <div>
-          <label for="maxWorkPieceZ">Max Work Piece Z:</label>
-          <input v-model="selectedMachine.maxWorkPieceZ" id="maxWorkPieceZ" type="text" />
-        </div>
-        <div>
-          <label for="workHoldingSystem">Work Holding System:</label>
-          <input v-model="selectedMachine.workHoldingSystem" id="workHoldingSystem" type="text" />
-        </div>
-        <div>
-          <label for="wireDiamter">Wire Diameter:</label>
-          <input v-model="selectedMachine.wireDiameter" id="wireDiameter" type="text" />
-        </div>
-        <div>
-          <label for="wireTension">Wire Tension:</label>
-          <input v-model="selectedMachine.wireTension" id="wireTension" type="text" />
-        </div>
-        <div>
-          <label for="maxWireSpeed">Max Wire Speed:</label>
-          <input v-model="selectedMachine.maxWireSpeed" id="maxWireSpeed" type="text" />
-        </div>
-        <div>
-          <label for="maxWireTension">Max Wire Tension:</label>
-          <input v-model="selectedMachine.maxWireTension" id="maxWireTension" type="text" />
-        </div>
-        <div>
-          <label for="cutKerfRadius">Cut Kerf Radius:</label>
-          <input v-model="selectedMachine.cutKerfRadius" id="cutKerfRadius" type="text" />
-        </div>
-        <div>
-          <label for="postProcessor">Post Processor:</label>
-          <input v-model="selectedMachine.postProcessor" id="postProcessor" type="text" />
+        <div v-if="activePage === 'postprocessor'" class="machine-post-processor">
+          <div v-if="showHeaderSection" class="post-processor">
+            <textarea
+              v-model="selectedMachine.postProcessor"
+              id="postProcessor"
+              type="text"
+            ></textarea>
+          </div>
+          <div v-if="showFooterSection" class="post-processor">
+            <textarea
+              v-model="selectedMachine.postProcessor"
+              id="postProcessor"
+              type="text"
+            ></textarea>
+          </div>
+          <div v-if="showHolePopSection" class="post-processor">
+            <textarea
+              v-model="selectedMachine.postProcessor"
+              id="postProcessor"
+              type="text"
+            ></textarea>
+          </div>
+          <div v-if="showPathChangeSection" class="post-processor">
+            <textarea
+              v-model="selectedMachine.postProcessor"
+              id="postProcessor"
+              type="text"
+            ></textarea>
+          </div>
         </div>
         <div class="form-actions">
           <button type="submit">{{ isEditing ? 'Save' : 'Add' }} Machine</button>
@@ -122,6 +168,55 @@ export default defineComponent({
     const machines = ref<Machine[]>([])
     const selectedMachine = ref<Machine | null>(null)
     const isEditing = ref(false)
+    let postProcessor = ref(false)
+    let activePage = ref('settings')
+    let activeSection = ref('header')
+    let showHeaderSection = ref(true)
+    let showFooterSection = ref(false)
+    let showHolePopSection = ref(false)
+    let showPathChangeSection = ref(false)
+
+    const showMachineSettings = async () => {
+      activePage.value = 'settings'
+      postProcessor.value = false
+    }
+
+    const showPostProcessor = async () => {
+      activePage.value = 'postprocessor'
+      postProcessor.value = true
+    }
+
+    const showHeader = async () => {
+      activeSection.value = 'header'
+      showHeaderSection.value = true
+      showFooterSection.value = false
+      showHolePopSection.value = false
+      showPathChangeSection.value = false
+    }
+
+    const showFooter = async () => {
+      activeSection.value = 'footer'
+      showHeaderSection.value = false
+      showFooterSection.value = true
+      showHolePopSection.value = false
+      showPathChangeSection.value = false
+    }
+
+    const showHolePop = async () => {
+      activeSection.value = 'holepop'
+      showHeaderSection.value = false
+      showFooterSection.value = false
+      showHolePopSection.value = true
+      showPathChangeSection.value = false
+    }
+
+    const showPathChange = async () => {
+      activeSection.value = 'pathchange'
+      showHeaderSection.value = false
+      showFooterSection.value = false
+      showHolePopSection.value = false
+      showPathChangeSection.value = true
+    }
 
     const fetchMachines = async () => {
       try {
@@ -185,8 +280,21 @@ export default defineComponent({
 
     return {
       machines,
+      activePage,
+      activeSection,
+      showHeaderSection,
+      showFooterSection,
+      showHolePopSection,
+      showPathChangeSection,
+      postProcessor,
       selectedMachine,
       isEditing,
+      showMachineSettings,
+      showPostProcessor,
+      showHeader,
+      showFooter,
+      showHolePop,
+      showPathChange,
       editMachine,
       addMachine,
       saveMachine,
@@ -218,7 +326,11 @@ export default defineComponent({
   padding: 0.5rem 1rem;
   font-size: 16px;
   border: 1px solid var(--color-border);
-  background-color: var(--color-background);
+  background-color: black;
+  color: white;
+}
+.page-select button.active {
+  background-color: orange;
   color: white;
 }
 .form-header h1 {
@@ -228,6 +340,7 @@ export default defineComponent({
 .machine-list ul {
   list-style-type: none;
   padding: 0;
+  color: white;
 }
 .machine-list li {
   display: flex;
@@ -246,7 +359,7 @@ export default defineComponent({
   padding: 0.5rem 1rem;
   font-size: 14px;
   border: 1px solid var(--color-border);
-  background-color: var(--color-background);
+  background-color: black;
   color: white;
   margin-right: 1rem;
 }
@@ -255,6 +368,12 @@ export default defineComponent({
 }
 .machine-list li svg {
   margin-left: 1rem;
+}
+.page-select {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  color: white;
 }
 .machine-configure-form {
   display: flex;
@@ -273,7 +392,7 @@ export default defineComponent({
   display: flex;
   flex-direction: column;
 }
-.machine-configure-form form div {
+.machine-configure-form form .machine-settings div {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -281,6 +400,7 @@ export default defineComponent({
 .machine-configure-form form div label {
   margin-left: 1rem;
   font-size: 16px;
+  color: white;
 }
 .machine-configure-form form div input,
 .machine-configure-form form div select {
@@ -304,7 +424,25 @@ export default defineComponent({
   padding: 0.5rem 1rem;
   font-size: 16px;
   border: 1px solid var(--color-border);
-  background-color: var(--color-background);
+  background-color: black;
   color: white;
+}
+.post-processor-sections {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-content: center;
+  margin: 1rem 0;
+}
+.post-processor-sections button.active {
+  background-color: orange;
+  color: white;
+}
+.post-processor textarea {
+  display: flex;
+  width: 80%;
+  height: 150px;
+  margin-left: auto;
+  margin-right: auto;
 }
 </style>
