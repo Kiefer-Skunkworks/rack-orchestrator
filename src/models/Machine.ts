@@ -1,4 +1,4 @@
-import type { MachinePostProcessor } from './MachinePostProcessor'
+import type MachinePostProcessor from './MachinePostProcessor'
 
 export default class Machine {
   id: number
