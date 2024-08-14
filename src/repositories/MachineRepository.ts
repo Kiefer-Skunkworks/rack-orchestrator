@@ -14,10 +14,10 @@ export default class MachineRepository implements Repository<Machine> {
   }
 
   async create(machine: Machine): Promise<Machine> {
-    const defaultPostProcessor = new MachinePostProcessor(1, '', '', '', '');
+    const defaultPostProcessor = new MachinePostProcessor(1, '', '', '', '')
 
-    machine.postProcessor = defaultPostProcessor;
-    
+    machine.postProcessor = defaultPostProcessor
+
     const machines = await this.getAll()
     const newMachine = new Machine(
       machines.length + 1,
