@@ -1,4 +1,5 @@
 import Machine from '@/models/Machine'
+import MachinePostProcessor from '@/models/MachinePostProcessor'
 import type { Repository } from '.'
 
 // implement the repository pattern backed by local storage
@@ -13,6 +14,10 @@ export default class MachineRepository implements Repository<Machine> {
   }
 
   async create(machine: Machine): Promise<Machine> {
+    const defaultPostProcessor = new MachinePostProcessor(1, '', '', '', '');
+
+    machine.postProcessor = defaultPostProcessor;
+    
     const machines = await this.getAll()
     const newMachine = new Machine(
       machines.length + 1,
