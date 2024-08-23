@@ -1,51 +1,90 @@
 <template>
-  <div class="controls">
-    <button @click="toggleSidebar">Toggle Sidebar 1</button>
-    <button @click="toggleSidebar">Toggle Sidebar 2</button>
-    <button @click="toggleSidebar">Toggle Sidebar 3</button>
-    <button @click="toggleSidebar">Toggle Sidebar 4</button>
-    <button @click="toggleSidebar">Toggle Sidebar 5</button>
-    <button @click="toggleSidebar">Toggle Sidebar 6</button>
-    <button @click="toggleSidebar">Toggle Sidebar 7</button>
-    <button @click="toggleSidebar">Toggle Sidebar 8</button>
+  
+  <!-- This page will hold recent files and maybe links to news about Rack Robotics -->
+  
+  <h1>Home</h1>
+
+  <!-- lets make some fake looking data for now -->
+   <br/>
+
+  <h2>Recent Files</h2>
+  <div class="card-container">
+    <div class="card">
+      <h3>Project 1</h3>
+      <p>Project 1 description</p>
+    </div>
+    <div class="card">
+      <h3>Project 2</h3>
+      <p>Project 2 description</p>
+    </div>
+    <div class="card">
+      <h3>Project 3</h3>
+      <p>Project 3 description</p>
+    </div>
   </div>
-  <MachinesForm />
+
+  <br/>
+
+  <h2>News</h2>
+  <div class="card-container">
+    <div class="card small">
+      <img class="card-image" src="https://via.placeholder.com/300" alt="News 1" />
+      <h3>Fake News 1</h3>
+      <p>Aliens invading Earth.</p>
+    </div>
+    <div class="card small">
+      <img class="card-image" src="https://via.placeholder.com/300" alt="News 1" />
+      <h3>Fake News 2</h3>
+      <p>Scientists discover a secret formula to turn vegetables into chocolate.</p>
+    </div>
+    <div class="card small">
+      <img class="card-image" src="https://via.placeholder.com/300" alt="News 1" />
+      <h3>Fake News 3</h3>
+      <p>World's largest pizza found floating in the ocean.</p>
+    </div>
+    <div class="card small">
+      <img class="card-image" src="https://via.placeholder.com/300" alt="News 1" />
+      <h3>Fake News 4</h3>
+      <p>Cats take over the internet and demand more treats.</p>
+    </div>
+  </div>
+
 </template>
 
 <script setup lang="ts">
-import MachinesForm from '../components/MachinesForm.vue'
-import { ref } from 'vue'
 
-const isSidebarOpen = ref(false)
-
-const toggleSidebar = () => {
-  isSidebarOpen.value = !isSidebarOpen.value
-  console.log('Sidebar toggled:', isSidebarOpen.value)
-}
 </script>
 
 <style scoped>
-.controls {
-  position: fixed;
-  top: 32px;
-  left: 0;
-  width: 100vw;
+
+.card-container {
   display: flex;
-  flex-direction: row;
-  align-content: center;
-  justify-content: center;
-  margin-top: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
-.controls button {
-  padding: 0.5rem 1rem;
-  font-size: 16px;
+
+.card {
+  flex: 1 1 300px;
+  padding: 1rem;
   border: 1px solid var(--color-border);
-  background-color: var(--color-background);
+  border-radius: 0.5rem;
+
+  .card-image {
+    width: 100%;
+    height: 200px;
+    background-color: var(--color-background);
+    border-radius: 0.5rem;
+  }
 }
-.controls button:hover {
-  background-color: var(--color-background-hover);
+
+.card:hover {
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  background-color: var(--color-background-soft);
 }
-.controls button:active {
-  background-color: var(--color-background-active);
+
+.card.small {
+  max-width: 25vw;
 }
+
 </style>
