@@ -10,11 +10,6 @@ const router = createRouter({
       component: HomeView
     },
     {
-      path: '/about',
-      name: 'about',
-      component: () => import('../views/AboutView.vue')
-    },
-    {
       path: '/design',
       name: 'design',
       component: () => import('../views/DesignView.vue')
@@ -23,7 +18,27 @@ const router = createRouter({
       path: '/prepare',
       name: 'prepare',
       component: () => import('../views/PrepareView.vue')
-    }
+    },
+    {
+      path: '/device',
+      name: 'device',
+      component: () => import('../views/DeviceView.vue')
+    },
+    {
+      path: '/project-notes',
+      name: 'project-notes',
+      component: () => import('../views/ProjectNotesView.vue'),
+    },
+    {
+      path: '/ship-it',
+      name: 'ship-it',
+      component: () => import('../views/ShipItView.vue'),
+    },
+    {
+      path: '/about',
+      name: 'about',
+      component: () => import('../views/AboutView.vue')
+    },
   ]
 })
 
