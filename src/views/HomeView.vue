@@ -1,3 +1,16 @@
+<script setup lang="ts">
+  import { computed, onMounted } from 'vue';
+  import { useProjectStore } from '@/stores/project';
+
+  const projectStore = useProjectStore();
+
+  onMounted(() => {
+    projectStore.listProjects();
+  });
+
+  const allProjects = computed(() => projectStore.allProjects);
+</script>
+
 <template>
   
   <!-- This page will hold recent files and maybe links to news about Rack Robotics -->
@@ -5,21 +18,50 @@
   <h1>Home</h1>
 
   <!-- lets make some fake looking data for now -->
-   <br/>
+  <br/>
 
   <h2>Recent Files</h2>
   <div class="card-container">
-    <div class="card">
-      <h3>Project 1</h3>
-      <p>Project 1 description</p>
+
+    <!--
+    
+      <li v-for="project in allProjects" :key="project.id">
+        {{ project.name }}
+      </li>
+    
+    -->
+
+    <li v-for="project in allProjects" :key="project.id">
+      <div class="card card-horizontal">
+        <img class="card-image" :src="project.iconPng" alt="Project Image" />
+        <div class="card-body">
+          <h3>{{ project.name }}</h3>
+          <p>{{ project.description }}</p>
+        </div>
+      </div>
+    </li>
+
+
+    <div class="card card-horizontal">
+      <img class="card-image" src="https://via.placeholder.com/100" alt="Project 1" />
+      <div class="card-body">
+        <h3>Project 1</h3>
+        <p>Project 1 description</p>
+      </div>
     </div>
-    <div class="card">
-      <h3>Project 2</h3>
-      <p>Project 2 description</p>
+    <div class="card card-horizontal">
+      <img class="card-image" src="https://via.placeholder.com/100" alt="Project 1" />
+      <div class="card-body">
+        <h3>Project 2</h3>
+        <p>Project 2 description</p>
+      </div>
     </div>
-    <div class="card">
-      <h3>Project 3</h3>
-      <p>Project 3 description</p>
+    <div class="card card-horizontal">
+      <img class="card-image" src="https://via.placeholder.com/100" alt="Project 1" />
+      <div class="card-body">
+        <h3>Project 3</h3>
+        <p>Project 3 description</p>
+      </div>
     </div>
   </div>
 
@@ -51,8 +93,7 @@
 
 </template>
 
-<script setup lang="ts">
-
+<script lang="ts">
 </script>
 
 <style scoped>
@@ -77,6 +118,20 @@
   }
 }
 
+.card-horizontal {
+  display: flex;
+  align-items: center;
+
+  .card-image {
+    margin-right: 1rem;
+    width: 30%;
+  }
+
+  .card-body {
+    flex: 1;
+  }
+}
+
 .card:hover {
   cursor: pointer;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -86,5 +141,4 @@
 .card.small {
   max-width: 25vw;
 }
-
 </style>

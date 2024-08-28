@@ -1,26 +1,15 @@
-<template>
-    <div class="menu-bar">
-      <ul class="menu">
-        <li v-for="menu in menus" :key="menu.name" class="menu-item">
-          {{ menu.name }}
-          <ul class="submenu">
-            <li v-for="item in menu.items" :key="item.name" class="submenu-item" @click="item.action">
-              {{ item.name }}
-            </li>
-          </ul>
-        </li>
-      </ul>
-    </div>
-  </template>
-  
-  <script setup lang="ts">
+<script setup lang="ts">
   import { ref } from 'vue';
+  import { useProjectStore } from '@/stores/project';
   
   const menus = ref([
     {
       name: 'File',
       items: [
-        { name: 'New Project', action: () => alert('New Project clicked') },
+        { name: 'New Project', action: () => {
+
+
+        } },
         { name: 'Open Project', action: () => alert('Open Project clicked') },
         { name: 'Save Project', action: () => alert('Save Project clicked') },
         { name: 'Save Project As', action: () => alert('Save Project As clicked') }
@@ -56,7 +45,22 @@
       ]
     }
   ]);
-  </script>
+</script>
+
+<template>
+    <div class="menu-bar">
+      <ul class="menu">
+        <li v-for="menu in menus" :key="menu.name" class="menu-item">
+          {{ menu.name }}
+          <ul class="submenu">
+            <li v-for="item in menu.items" :key="item.name" class="submenu-item" @click="item.action">
+              {{ item.name }}
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </template>
   
   <style scoped>
   .menu-bar {
