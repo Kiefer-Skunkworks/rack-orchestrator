@@ -9,7 +9,9 @@ const projectService = new ProjectService();
 export const useProjectStore = defineStore('projectStore', {
   state: () => ({
     projects: [] as Project[],
-    selectedProject: null as Project | null,
+    currentProject: null as Project | null,
+    isOpeningProject: false,
+    isCreatingProject: false,
   }),
 
   actions: {
@@ -18,7 +20,11 @@ export const useProjectStore = defineStore('projectStore', {
     },
 
     async openProject(id: number) {
-      this.selectedProject = await projectService.loadProject(id);
+      this.currentProject = await projectService.loadProject(id);
+    },
+
+    async newProject(project: Project) {
+      this.currentProject = project;
     },
 
     async saveProject(project: Project) {
@@ -40,8 +46,8 @@ export const useProjectStore = defineStore('projectStore', {
   },
 
   getters: {
-    getProjectById: (state) => (id: number) => {
-      return state.projects.find(p => p.id === id) || null;
+    currentProject: (state) => {
+      return state.currentProject;
     },
 
     allProjects: (state) => {

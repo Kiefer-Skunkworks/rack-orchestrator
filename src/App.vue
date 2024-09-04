@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
-import MenuBar from './components/MenuBar.vue'
 
+import { useProjectStore } from '@/stores/project'
+
+import MenuBar from '@/components/MenuBar.vue'
+import OpenProjectModal from '@/components/OpenProjectModal.vue'
+import NewProjectModal from '@/components/NewProjectModal.vue'
+
+const projectStore = useProjectStore();
 </script>
 
 <!--
@@ -56,7 +62,13 @@ The overall layout of this application will be the following stacked components:
   <main>
     <RouterView />
   </main>
+  <OpenProjectModal :isOpen="projectStore.isOpeningProject" />
+  <NewProjectModal :isOpen="projectStore.isCreatingProject" />
 </template>
+
+<script lang="ts">
+
+</script>
 
 <style scoped>
   header {

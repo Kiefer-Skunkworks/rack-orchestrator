@@ -1,4 +1,4 @@
-export default class MachinePostProcessor {
+export default class {
   id: number
   header: string
   footer: string
