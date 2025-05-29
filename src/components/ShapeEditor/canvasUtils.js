@@ -1,24 +1,36 @@
-export function drawShape(ctx, shape) {
+export function drawShape(ctx, shape, pan, pixelsPerUnit) {
   ctx.beginPath()
   ctx.strokeStyle = shape.color || 'black'
 
+  function toScreen(pt) {
+    return {
+      x: pan.x + pt.x * pixelsPerUnit,
+      y: pan.y + pt.y * pixelsPerUnit
+    }
+  }
+
   switch (shape.type) {
-    case 'line':
-      ctx.moveTo(shape.start.x, shape.start.y)
-      ctx.lineTo(shape.end.x, shape.end.y)
+    case 'line': {
+      const start = toScreen(shape.start)
+      const end = toScreen(shape.end)
+      ctx.moveTo(start.x, start.y)
+      ctx.lineTo(end.x, end.y)
       break
+    }
     case 'polygon':
       if (shape.points && shape.points.length > 0) {
         ctx.beginPath()
-        ctx.moveTo(shape.points[0].x, shape.points[0].y)
+        const first = toScreen(shape.points[0])
+        ctx.moveTo(first.x, first.y)
         for (let i = 1; i < shape.points.length; i++) {
-          ctx.lineTo(shape.points[i].x, shape.points[i].y)
+          const pt = toScreen(shape.points[i])
+          ctx.lineTo(pt.x, pt.y)
         }
         if (shape.preview) {
-          ctx.lineTo(shape.preview.x, shape.preview.y)
+          const preview = toScreen(shape.preview)
+          ctx.lineTo(preview.x, preview.y)
         }
-        const first = shape.points[0]
-        const last = shape.points[shape.points.length - 1]
+        const last = toScreen(shape.points[shape.points.length - 1])
         if (shape.points.length > 2 && first.x === last.x && first.y === last.y) {
           ctx.closePath()
         }

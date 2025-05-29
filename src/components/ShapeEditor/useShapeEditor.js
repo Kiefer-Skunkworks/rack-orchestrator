@@ -58,27 +58,49 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     ctx.strokeStyle = '#eee'
     ctx.lineWidth = 1
     ctx.beginPath()
-    const spacing = spacingUnits * pxPerUnit
-    // Align grid lines to real-world grid intersections
-    const startX = ((-pan.x % spacing) + spacing) % spacing
-    for (let x = startX; x < width; x += spacing) {
-      ctx.moveTo(x, 0)
-      ctx.lineTo(x, height)
+
+    // 1. Real-world coordinate at left/top edge
+    const x0 = -pan.x / pxPerUnit
+    const y0 = -pan.y / pxPerUnit
+
+    // 2. First grid intersection ≤ x0/y0
+    const firstGridX = Math.floor(x0 / spacingUnits) * spacingUnits
+    const firstGridY = Math.floor(y0 / spacingUnits) * spacingUnits
+
+    // 3. Draw vertical grid lines
+    for (let gx = firstGridX; gx * pxPerUnit + pan.x < width; gx += spacingUnits) {
+      const x = gx * pxPerUnit + pan.x
+      if (x >= 0) {
+        ctx.moveTo(x, 0)
+        ctx.lineTo(x, height)
+      }
     }
-    const startY = ((-pan.y % spacing) + spacing) % spacing
-    for (let y = startY; y < height; y += spacing) {
-      ctx.moveTo(0, y)
-      ctx.lineTo(width, y)
+
+    // 4. Draw horizontal grid lines
+    for (let gy = firstGridY; gy * pxPerUnit + pan.y < height; gy += spacingUnits) {
+      const y = gy * pxPerUnit + pan.y
+      if (y >= 0) {
+        ctx.moveTo(0, y)
+        ctx.lineTo(width, y)
+      }
     }
+
     ctx.stroke()
+
     // --- DEBUG: draw dots at grid intersections ---
     ctx.save()
     ctx.fillStyle = '#f00'
-    for (let x = startX; x < width; x += spacing) {
-      for (let y = startY; y < height; y += spacing) {
-        ctx.beginPath()
-        ctx.arc(x, y, 2, 0, 2 * Math.PI)
-        ctx.fill()
+    for (let gx = firstGridX; gx * pxPerUnit + pan.x < width; gx += spacingUnits) {
+      const x = gx * pxPerUnit + pan.x
+      if (x >= 0) {
+        for (let gy = firstGridY; gy * pxPerUnit + pan.y < height; gy += spacingUnits) {
+          const y = gy * pxPerUnit + pan.y
+          if (y >= 0) {
+            ctx.beginPath()
+            ctx.arc(x, y, 2, 0, 2 * Math.PI)
+            ctx.fill()
+          }
+        }
       }
     }
     ctx.restore()
@@ -183,7 +205,6 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     drawGrid(ctx, el.width, el.height, pan.value)
     drawAxes(ctx, el.width, el.height, pan.value)
     ctx.save()
-    ctx.translate(pan.value.x, pan.value.y)
     for (let shape of shapes.value) {
       // Highlight selected shape
       if (selectedShape.value === shape) {
@@ -192,14 +213,14 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
         ctx.shadowBlur = 8
         ctx.lineWidth = 4
         ctx.globalAlpha = 0.7
-        drawShape(ctx, shape)
+        drawShape(ctx, shape, pan.value, pixelsPerUnit.value)
         ctx.restore()
       } else {
-        drawShape(ctx, shape)
+        drawShape(ctx, shape, pan.value, pixelsPerUnit.value)
       }
     }
     if (currentShape.value) {
-      drawShape(ctx, currentShape.value)
+      drawShape(ctx, currentShape.value, pan.value, pixelsPerUnit.value)
     }
     ctx.restore()
     // Draw cursor overlay
@@ -208,8 +229,8 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
       ctx.beginPath()
       if (snappedPoint.value) {
         ctx.arc(
-          snappedPoint.value.x + pan.value.x,
-          snappedPoint.value.y + pan.value.y,
+          snappedPoint.value.x * pixelsPerUnit.value + pan.value.x,
+          snappedPoint.value.y * pixelsPerUnit.value + pan.value.y,
           6,
           0,
           2 * Math.PI
@@ -449,7 +470,8 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
   }
 
   function addDefaultCube() {
-    const size = unit.value === 'mm' ? 25 : 1 // 25mm or 1in (larger default)
+    // Always add a 100mm x 100mm square at the origin, regardless of unit
+    const size = 100 // 100mm
     shapes.value.push({
       type: 'polygon',
       points: [
