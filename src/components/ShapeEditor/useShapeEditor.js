@@ -25,7 +25,7 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
   const unit = ref('mm') // 'mm' or 'in'
   const pixelsPerUnit = ref(DPI / 25.4) // default for mm
   const gridSpacingUnits = ref(5) // 5mm or 0.25in
-  const snapToGrid = ref(false)
+  const snapToGrid = ref(true)
 
   // Grid size options for each unit
   const gridSizeOptions = {
@@ -34,6 +34,9 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
   }
 
   const currentGridSizeOptions = computed(() => gridSizeOptions[unit.value])
+
+  const showGridDots = ref(true)
+  const showGrid = ref(true)
 
   function initCanvas() {
     el = canvas.value
@@ -54,8 +57,9 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     spacingUnits = gridSpacingUnits.value,
     pxPerUnit = pixelsPerUnit.value
   ) {
+    if (!showGrid.value) return
     ctx.save()
-    ctx.strokeStyle = '#eee'
+    ctx.strokeStyle = showGridDots.value ? 'rgba(0,0,0,0)' : '#eee'
     ctx.lineWidth = 1
     ctx.beginPath()
 
@@ -87,23 +91,25 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
 
     ctx.stroke()
 
-    // --- DEBUG: draw dots at grid intersections ---
-    ctx.save()
-    ctx.fillStyle = '#f00'
-    for (let gx = firstGridX; gx * pxPerUnit + pan.x < width; gx += spacingUnits) {
-      const x = gx * pxPerUnit + pan.x
-      if (x >= 0) {
-        for (let gy = firstGridY; gy * pxPerUnit + pan.y < height; gy += spacingUnits) {
-          const y = gy * pxPerUnit + pan.y
-          if (y >= 0) {
-            ctx.beginPath()
-            ctx.arc(x, y, 2, 0, 2 * Math.PI)
-            ctx.fill()
+    // --- DEBUG: draw lighter dots at grid intersections if enabled ---
+    if (showGridDots.value) {
+      ctx.save()
+      ctx.fillStyle = '#aad'
+      for (let gx = firstGridX; gx * pxPerUnit + pan.x < width; gx += spacingUnits) {
+        const x = gx * pxPerUnit + pan.x
+        if (x >= 0) {
+          for (let gy = firstGridY; gy * pxPerUnit + pan.y < height; gy += spacingUnits) {
+            const y = gy * pxPerUnit + pan.y
+            if (y >= 0) {
+              ctx.beginPath()
+              ctx.arc(x, y, 2, 0, 2 * Math.PI)
+              ctx.fill()
+            }
           }
         }
       }
+      ctx.restore()
     }
-    ctx.restore()
     ctx.restore()
   }
 
@@ -254,9 +260,9 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
       lastPan = { x: e.clientX, y: e.clientY }
       return
     }
-    let x = e.offsetX - pan.value.x,
-      y = e.offsetY - pan.value.y
-    // Snap to grid if enabled
+    // Convert mouse to real-world units
+    let x = (e.offsetX - pan.value.x) / pixelsPerUnit.value,
+      y = (e.offsetY - pan.value.y) / pixelsPerUnit.value
     if (snapToGrid.value) {
       const snapped = snapPointToGrid(x, y)
       x = snapped.x
@@ -339,9 +345,9 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
       return
     }
     if (!drawing.value && !hovering.value) return
-    let x = e.offsetX - pan.value.x,
-      y = e.offsetY - pan.value.y
-    // Snap to grid if enabled
+    // Convert mouse to real-world units
+    let x = (e.offsetX - pan.value.x) / pixelsPerUnit.value,
+      y = (e.offsetY - pan.value.y) / pixelsPerUnit.value
     let snappedGrid = null
     if (snapToGrid.value) {
       const snapped = snapPointToGrid(x, y)
@@ -362,8 +368,8 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     if (snappedPoint.value) {
       console.log(
         'Mouse:',
-        (e.offsetX - pan.value.x).toFixed(2),
-        (e.offsetY - pan.value.y).toFixed(2),
+        ((e.offsetX - pan.value.x) / pixelsPerUnit.value).toFixed(2),
+        ((e.offsetY - pan.value.y) / pixelsPerUnit.value).toFixed(2),
         'Snapped:',
         snappedPoint.value.x.toFixed(2),
         snappedPoint.value.y.toFixed(2)
@@ -393,12 +399,16 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     }
     if (shapeType.value === 'line' && drawing.value && mouseDownPos) {
       // If mouse has moved, treat as drag-to-draw
-      const x = e.offsetX - pan.value.x,
-        y = e.offsetY - pan.value.y
+      let x = (e.offsetX - pan.value.x) / pixelsPerUnit.value,
+        y = (e.offsetY - pan.value.y) / pixelsPerUnit.value
       const dist = Math.hypot(x - mouseDownPos.x, y - mouseDownPos.y)
       if (dist > 2) {
         // threshold to distinguish click vs drag
-        // Always check for snap at mouse up
+        if (snapToGrid.value) {
+          const snapped = snapPointToGrid(x, y)
+          x = snapped.x
+          y = snapped.y
+        }
         const snap = findSnapPoint(x, y)
         const usePt = snap ? { x: snap.x, y: snap.y } : { x, y }
         currentShape.value.end = { x: usePt.x, y: usePt.y }
@@ -523,8 +533,9 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
   // --- Snap mouse position to grid for initial tool placement ---
   function onMouseMoveInitial(e) {
     if (drawing.value) return // handled by main onMouseMove
-    let x = e.offsetX - pan.value.x,
-      y = e.offsetY - pan.value.y
+    // Convert mouse to real-world units
+    let x = (e.offsetX - pan.value.x) / pixelsPerUnit.value,
+      y = (e.offsetY - pan.value.y) / pixelsPerUnit.value
     if (snapToGrid.value) {
       const snapped = snapPointToGrid(x, y)
       x = snapped.x
@@ -532,6 +543,15 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     }
     snappedPoint.value = { x, y }
     drawAll()
+  }
+
+  function setShowGridDots(val) {
+    showGridDots.value = !!val
+  }
+
+  function setShowGrid(val) {
+    showGrid.value = !!val
+    if (!showGrid.value) snapToGrid.value = false
   }
 
   return {
@@ -561,6 +581,10 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     exportShapesToSVG,
     snapToGrid,
     setSnapToGrid,
-    onMouseMoveInitial
+    onMouseMoveInitial,
+    showGridDots,
+    setShowGridDots,
+    showGrid,
+    setShowGrid
   }
 }
