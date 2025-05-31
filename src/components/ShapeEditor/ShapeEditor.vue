@@ -297,12 +297,15 @@ function exportSVG() {
 
 function zoomIn() {
   zoom.value = Math.min(zoom.value * 1.25, 10)
+  drawAll(zoom.value)
 }
 function zoomOut() {
   zoom.value = Math.max(zoom.value / 1.25, 0.1)
+  drawAll(zoom.value)
 }
 function resetZoom() {
   zoom.value = 1.0
+  drawAll(zoom.value)
 }
 
 onMounted(async () => {
