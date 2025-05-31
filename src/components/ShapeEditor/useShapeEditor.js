@@ -550,11 +550,13 @@ export function useShapeEditor(
 
   function setShowGridDots(val) {
     showGridDots.value = !!val
+    drawAll()
   }
 
   function setShowGrid(val) {
     showGrid.value = !!val
     if (!showGrid.value) snapToGrid.value = false
+    drawAll()
   }
 
   return {
