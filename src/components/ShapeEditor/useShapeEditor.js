@@ -214,13 +214,11 @@ export function useShapeEditor(
 
   function drawAll() {
     ctx.clearRect(0, 0, el.width, el.height)
-    console.log('drawAll: shapes', JSON.stringify(shapes.value, null, 2))
     drawGrid(ctx, el.width, el.height, pan.value, gridSpacingUnits.value, pixelsPerUnit.value)
     drawAxes(ctx, el.width, el.height, pan.value, pixelsPerUnit.value)
     ctx.save()
     for (let shape of shapes.value) {
       // Highlight selected shape
-      console.log('drawAll: shape type', shape.type)
       try {
         if (selectedShape.value === shape) {
           ctx.save()
@@ -379,17 +377,6 @@ export function useShapeEditor(
       snappedPoint.value = { x: snappedGrid.x, y: snappedGrid.y }
     } else {
       snappedPoint.value = null
-    }
-    // --- DEBUG: log mouse and snapped point ---
-    if (snappedPoint.value) {
-      console.log(
-        'Mouse:',
-        ((e.offsetX - pan.value.x) / (pixelsPerUnit.value * zoom.value)).toFixed(2),
-        ((e.offsetY - pan.value.y) / (pixelsPerUnit.value * zoom.value)).toFixed(2),
-        'Snapped:',
-        snappedPoint.value.x.toFixed(2),
-        snappedPoint.value.y.toFixed(2)
-      )
     }
     if (!drawing.value || !currentShape.value) {
       drawAll()
