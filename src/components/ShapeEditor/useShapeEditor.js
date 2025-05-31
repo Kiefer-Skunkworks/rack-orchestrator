@@ -3,7 +3,12 @@ import { drawShape } from './canvasUtils'
 
 const gridSpacing = 32 // grid spacing in px
 
-export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering = ref(false)) {
+export function useShapeEditor(
+  canvas,
+  mousePos = ref({ x: 0, y: 0 }),
+  hovering = ref(false),
+  zoom = ref(1.0)
+) {
   let ctx
   let el // for canvas element
   const shapes = ref([])
@@ -63,17 +68,18 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     ctx.lineWidth = 1
     ctx.beginPath()
 
+    const scale = pxPerUnit * zoom.value
     // 1. Real-world coordinate at left/top edge
-    const x0 = -pan.x / pxPerUnit
-    const y0 = -pan.y / pxPerUnit
+    const x0 = -pan.x / scale
+    const y0 = -pan.y / scale
 
     // 2. First grid intersection ≤ x0/y0
     const firstGridX = Math.floor(x0 / spacingUnits) * spacingUnits
     const firstGridY = Math.floor(y0 / spacingUnits) * spacingUnits
 
     // 3. Draw vertical grid lines
-    for (let gx = firstGridX; gx * pxPerUnit + pan.x < width; gx += spacingUnits) {
-      const x = gx * pxPerUnit + pan.x
+    for (let gx = firstGridX; gx * scale + pan.x < width; gx += spacingUnits) {
+      const x = gx * scale + pan.x
       if (x >= 0) {
         ctx.moveTo(x, 0)
         ctx.lineTo(x, height)
@@ -81,8 +87,8 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     }
 
     // 4. Draw horizontal grid lines
-    for (let gy = firstGridY; gy * pxPerUnit + pan.y < height; gy += spacingUnits) {
-      const y = gy * pxPerUnit + pan.y
+    for (let gy = firstGridY; gy * scale + pan.y < height; gy += spacingUnits) {
+      const y = gy * scale + pan.y
       if (y >= 0) {
         ctx.moveTo(0, y)
         ctx.lineTo(width, y)
@@ -95,11 +101,11 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     if (showGridDots.value) {
       ctx.save()
       ctx.fillStyle = '#aad'
-      for (let gx = firstGridX; gx * pxPerUnit + pan.x < width; gx += spacingUnits) {
-        const x = gx * pxPerUnit + pan.x
+      for (let gx = firstGridX; gx * scale + pan.x < width; gx += spacingUnits) {
+        const x = gx * scale + pan.x
         if (x >= 0) {
-          for (let gy = firstGridY; gy * pxPerUnit + pan.y < height; gy += spacingUnits) {
-            const y = gy * pxPerUnit + pan.y
+          for (let gy = firstGridY; gy * scale + pan.y < height; gy += spacingUnits) {
+            const y = gy * scale + pan.y
             if (y >= 0) {
               ctx.beginPath()
               ctx.arc(x, y, 2, 0, 2 * Math.PI)
@@ -113,7 +119,7 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     ctx.restore()
   }
 
-  function drawAxes(ctx, width, height, pan) {
+  function drawAxes(ctx, width, height, pan, pxPerUnit = pixelsPerUnit.value) {
     ctx.save()
     ctx.strokeStyle = '#aaa'
     ctx.lineWidth = 2
@@ -208,25 +214,35 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
 
   function drawAll() {
     ctx.clearRect(0, 0, el.width, el.height)
-    drawGrid(ctx, el.width, el.height, pan.value)
-    drawAxes(ctx, el.width, el.height, pan.value)
+    console.log('drawAll: shapes', JSON.stringify(shapes.value, null, 2))
+    drawGrid(ctx, el.width, el.height, pan.value, gridSpacingUnits.value, pixelsPerUnit.value)
+    drawAxes(ctx, el.width, el.height, pan.value, pixelsPerUnit.value)
     ctx.save()
     for (let shape of shapes.value) {
       // Highlight selected shape
-      if (selectedShape.value === shape) {
-        ctx.save()
-        ctx.shadowColor = '#1ec41e'
-        ctx.shadowBlur = 8
-        ctx.lineWidth = 4
-        ctx.globalAlpha = 0.7
-        drawShape(ctx, shape, pan.value, pixelsPerUnit.value)
-        ctx.restore()
-      } else {
-        drawShape(ctx, shape, pan.value, pixelsPerUnit.value)
+      console.log('drawAll: shape type', shape.type)
+      try {
+        if (selectedShape.value === shape) {
+          ctx.save()
+          ctx.shadowColor = '#1ec41e'
+          ctx.shadowBlur = 8
+          ctx.lineWidth = 4
+          ctx.globalAlpha = 0.7
+          drawShape(ctx, shape, pan.value, pixelsPerUnit.value, zoom.value)
+          ctx.restore()
+        } else {
+          drawShape(ctx, shape, pan.value, pixelsPerUnit.value, zoom.value)
+        }
+      } catch (err) {
+        console.error('drawAll: error drawing shape', err, shape)
       }
     }
     if (currentShape.value) {
-      drawShape(ctx, currentShape.value, pan.value, pixelsPerUnit.value)
+      try {
+        drawShape(ctx, currentShape.value, pan.value, pixelsPerUnit.value, zoom.value)
+      } catch (err) {
+        console.error('drawAll: error drawing currentShape', err, currentShape.value)
+      }
     }
     ctx.restore()
     // Draw cursor overlay
@@ -235,8 +251,8 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
       ctx.beginPath()
       if (snappedPoint.value) {
         ctx.arc(
-          snappedPoint.value.x * pixelsPerUnit.value + pan.value.x,
-          snappedPoint.value.y * pixelsPerUnit.value + pan.value.y,
+          snappedPoint.value.x * pixelsPerUnit.value * zoom.value + pan.value.x,
+          snappedPoint.value.y * pixelsPerUnit.value * zoom.value + pan.value.y,
           6,
           0,
           2 * Math.PI
@@ -261,8 +277,8 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
       return
     }
     // Convert mouse to real-world units
-    let x = (e.offsetX - pan.value.x) / pixelsPerUnit.value,
-      y = (e.offsetY - pan.value.y) / pixelsPerUnit.value
+    let x = (e.offsetX - pan.value.x) / (pixelsPerUnit.value * zoom.value),
+      y = (e.offsetY - pan.value.y) / (pixelsPerUnit.value * zoom.value)
     if (snapToGrid.value) {
       const snapped = snapPointToGrid(x, y)
       x = snapped.x
@@ -346,8 +362,8 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     }
     if (!drawing.value && !hovering.value) return
     // Convert mouse to real-world units
-    let x = (e.offsetX - pan.value.x) / pixelsPerUnit.value,
-      y = (e.offsetY - pan.value.y) / pixelsPerUnit.value
+    let x = (e.offsetX - pan.value.x) / (pixelsPerUnit.value * zoom.value),
+      y = (e.offsetY - pan.value.y) / (pixelsPerUnit.value * zoom.value)
     let snappedGrid = null
     if (snapToGrid.value) {
       const snapped = snapPointToGrid(x, y)
@@ -368,8 +384,8 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     if (snappedPoint.value) {
       console.log(
         'Mouse:',
-        ((e.offsetX - pan.value.x) / pixelsPerUnit.value).toFixed(2),
-        ((e.offsetY - pan.value.y) / pixelsPerUnit.value).toFixed(2),
+        ((e.offsetX - pan.value.x) / (pixelsPerUnit.value * zoom.value)).toFixed(2),
+        ((e.offsetY - pan.value.y) / (pixelsPerUnit.value * zoom.value)).toFixed(2),
         'Snapped:',
         snappedPoint.value.x.toFixed(2),
         snappedPoint.value.y.toFixed(2)
@@ -399,8 +415,8 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
     }
     if (shapeType.value === 'line' && drawing.value && mouseDownPos) {
       // If mouse has moved, treat as drag-to-draw
-      let x = (e.offsetX - pan.value.x) / pixelsPerUnit.value,
-        y = (e.offsetY - pan.value.y) / pixelsPerUnit.value
+      let x = (e.offsetX - pan.value.x) / (pixelsPerUnit.value * zoom.value),
+        y = (e.offsetY - pan.value.y) / (pixelsPerUnit.value * zoom.value)
       const dist = Math.hypot(x - mouseDownPos.x, y - mouseDownPos.y)
       if (dist > 2) {
         // threshold to distinguish click vs drag
@@ -534,8 +550,8 @@ export function useShapeEditor(canvas, mousePos = ref({ x: 0, y: 0 }), hovering 
   function onMouseMoveInitial(e) {
     if (drawing.value) return // handled by main onMouseMove
     // Convert mouse to real-world units
-    let x = (e.offsetX - pan.value.x) / pixelsPerUnit.value,
-      y = (e.offsetY - pan.value.y) / pixelsPerUnit.value
+    let x = (e.offsetX - pan.value.x) / (pixelsPerUnit.value * zoom.value),
+      y = (e.offsetY - pan.value.y) / (pixelsPerUnit.value * zoom.value)
     if (snapToGrid.value) {
       const snapped = snapPointToGrid(x, y)
       x = snapped.x
