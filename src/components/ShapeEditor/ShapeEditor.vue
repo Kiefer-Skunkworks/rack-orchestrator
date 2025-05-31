@@ -2,9 +2,6 @@
   <div class="shape-editor">
     <!-- Top bar: left (tool indicator), center (unit & grid), right (export, zoom) -->
     <div class="editor-top-bar">
-      <div class="editor-top-left">
-        <ToolIndicator :shapeType="shapeType" />
-      </div>
       <div class="editor-top-center">
         <div class="unit-grid-controls-wrapper">
           <div class="unit-grid-controls">
@@ -12,51 +9,53 @@
               <input type="checkbox" v-model="showGridProxy" />
               Show grid
             </label>
-            <template v-if="showGridProxy">
-              <label style="display: flex; align-items: center; gap: 4px; margin-left: 16px">
-                Units:
-                <select v-model="unitProxy">
-                  <option value="mm">Millimeters (mm)</option>
-                  <option value="in">Inches (in)</option>
-                </select>
-              </label>
-              <label style="display: flex; align-items: center; gap: 4px; margin-left: 16px">
-                Grid:
-                <select v-model="gridSizeProxy">
-                  <option v-for="size in currentGridSizeOptions" :key="size" :value="size">
-                    {{ size }} {{ unit }}
-                  </option>
-                </select>
-              </label>
-              <label style="display: flex; align-items: center; gap: 4px; margin-left: 16px">
-                <input type="checkbox" v-model="snapToGridProxy" />
-                Snap to grid
-              </label>
-              <label style="display: flex; align-items: center; gap: 4px; margin-left: 16px">
-                <input type="checkbox" v-model="showGridDotsProxy" />
-                Show grid dots
-              </label>
-            </template>
+            <label style="display: flex; align-items: center; gap: 4px; margin-left: 16px">
+              Units:
+              <select v-model="unitProxy">
+                <option value="mm">Millimeters (mm)</option>
+                <option value="in">Inches (in)</option>
+              </select>
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px; margin-left: 16px">
+              Grid:
+              <select v-model="gridSizeProxy" :disabled="!showGridProxy">
+                <option v-for="size in currentGridSizeOptions" :key="size" :value="size">
+                  {{ size }} {{ unit }}
+                </option>
+              </select>
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px; margin-left: 16px">
+              <input type="checkbox" v-model="snapToGridProxy" :disabled="!showGridProxy" />
+              Snap to grid
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px; margin-left: 16px">
+              <input type="checkbox" v-model="showGridDotsProxy" :disabled="!showGridProxy" />
+              Show grid dots
+            </label>
           </div>
         </div>
       </div>
       <div class="editor-top-right">
-        <button class="export-svg-btn" @click="exportSVG">Export SVG</button>
-        <span v-if="showCopied" class="copied-msg">Copied!</span>
-        <div
-          class="zoom-controls"
-          style="display: inline-flex; align-items: center; gap: 4px; margin-left: 16px"
-        >
-          <button @click="zoomOut" title="Zoom out" style="width: 28px">-</button>
-          <span style="min-width: 48px; text-align: center">{{ Math.round(zoom * 100) }}%</span>
-          <button @click="zoomIn" title="Zoom in" style="width: 28px">+</button>
-          <button @click="resetZoom" title="Reset zoom" style="width: 28px">⟳</button>
+        <div class="top-bar-group">
+          <button class="export-svg-btn" @click="exportSVG">Export SVG</button>
+          <span v-if="showCopied" class="copied-msg">Copied!</span>
+          <div
+            class="zoom-controls"
+            style="display: inline-flex; align-items: center; gap: 4px; margin-left: 16px"
+          >
+            <button @click="zoomOut" title="Zoom out" style="width: 28px">-</button>
+            <span class="zoom-text" style="min-width: 48px; text-align: center"
+              >{{ Math.round(zoom * 100) }}%</span
+            >
+            <button @click="zoomIn" title="Zoom in" style="width: 28px">+</button>
+            <button @click="resetZoom" title="Reset zoom" style="width: 28px">⟳</button>
+          </div>
         </div>
       </div>
     </div>
-    <!-- Vertical tool bar on the left -->
-    <div class="vertical-tool-bar">
-      <ToolBar :shapeType="shapeType" :setTool="setTool" vertical />
+    <!-- Full-height left toolbar -->
+    <div class="left-toolbar">
+      <ToolBar :shapeType="shapeType" :setTool="setTool" vertical showDivider />
     </div>
     <canvas
       ref="canvas"
@@ -67,6 +66,7 @@
       @mouseleave="handleMouseLeave"
       @contextmenu.prevent="handleContextMenu"
     ></canvas>
+    <ToolIndicator :shapeType="shapeType" />
     <ContextMenu
       :show="showContextMenu"
       :position="contextMenuPos"
@@ -336,17 +336,12 @@ onUnmounted(() => {
   top: 0;
   left: 0;
   width: 100%;
+  height: 56px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   z-index: 10;
   pointer-events: none;
-}
-
-.editor-top-left {
-  flex: 0 0 auto;
-  padding: 8px;
-  pointer-events: auto;
 }
 
 .editor-top-center {
@@ -355,6 +350,7 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   pointer-events: auto;
+  padding: 8px;
 }
 
 .editor-top-right {
@@ -366,14 +362,23 @@ onUnmounted(() => {
   pointer-events: auto;
 }
 
-.vertical-tool-bar {
+.left-toolbar {
   position: absolute;
-  top: 56px;
-  /* below top bar */
-  left: 8px;
-  z-index: 5;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 56px;
+  background: #f5f7fa;
+  border-right: 1px solid #ddd;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  z-index: 100;
+  padding-top: 16px;
+  padding-bottom: 0;
+  padding-left: 0;
+  padding-right: 0;
   gap: 8px;
   pointer-events: auto;
 }
@@ -414,9 +419,10 @@ onUnmounted(() => {
 }
 
 .unit-grid-controls-wrapper {
-  background: rgba(255, 255, 255, 0.92);
+  background: #f5f7fa;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #ddd;
   padding: 8px 18px;
   display: inline-block;
 }
@@ -428,6 +434,21 @@ onUnmounted(() => {
 }
 
 .unit-grid-controls-wrapper label {
+  color: #222;
+}
+
+.top-bar-group {
+  background: #f5f7fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #ddd;
+  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoom-text {
   color: #222;
 }
 </style>

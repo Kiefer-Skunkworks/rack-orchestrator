@@ -1,30 +1,35 @@
 <template>
-    <div class="tool-indicator">
-        <span v-if="shapeType === 'line'">🖊️ Line</span>
-        <span v-else-if="shapeType === 'polygon'">🔺 Polygon</span>
-        <span v-else-if="shapeType === 'select'">🖱️ Select</span>
-        <!-- Add more icons for other tools as needed -->
-    </div>
+  <div class="tool-indicator">
+    <span v-if="shapeType === 'line'"><LineIcon /> Line</span>
+    <span v-else-if="shapeType === 'polygon'"><PolygonIcon /> Polygon</span>
+    <span v-else-if="shapeType === 'select'"><SelectIcon /> Select</span>
+    <!-- Add more icons for other tools as needed -->
+  </div>
 </template>
 
 <script setup>
+import SelectIcon from './icons/SelectIcon.vue'
+import LineIcon from './icons/LineIcon.vue'
+import PolygonIcon from './icons/PolygonIcon.vue'
 const props = defineProps({
-    shapeType: String
+  shapeType: String
 })
 </script>
 
 <style scoped>
 .tool-indicator {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    background: rgba(55, 55, 55, 0.85);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 1rem;
-    z-index: 2;
-    pointer-events: none;
-    user-select: none;
-    color: #fff;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  left: auto;
+  top: auto;
+  background: rgba(55, 55, 55, 0.85);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 1rem;
+  z-index: 10;
+  pointer-events: none;
+  user-select: none;
+  color: #fff;
 }
 </style>

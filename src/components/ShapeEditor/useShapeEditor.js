@@ -1,5 +1,22 @@
 import { ref, computed } from 'vue'
 import { drawShape } from './canvasUtils'
+import {
+  shapes,
+  currentShape,
+  drawing,
+  selectedShape,
+  snapRadius,
+  findSnapPoint,
+  hitTestShape,
+  addDefaultCube
+} from './shapeLogic'
+import {
+  createOnMouseMove,
+  createOnMouseDown,
+  createOnMouseUp,
+  createOnDblClick,
+  createOnRightClick
+} from './shapeEditorHandlers'
 
 const gridSpacing = 32 // grid spacing in px
 
@@ -11,19 +28,20 @@ export function useShapeEditor(
 ) {
   let ctx
   let el // for canvas element
-  const shapes = ref([])
-  const currentShape = ref(null)
-  const drawing = ref(false)
-  const shapeType = ref('line')
-  const snapRadius = 10
-  const snappedPoint = ref(null)
-  const selectedShape = ref(null)
 
-  // Pan state: offset origin by gridSpacing from top-left
-  const pan = ref({ x: gridSpacing, y: gridSpacing })
-  let isPanning = false
-  let lastPan = { x: 0, y: 0 }
-  let mouseDownPos = null
+  // Tool/mode selector
+  const shapeType = ref('line')
+
+  // Snapped point for cursor overlay and snapping logic
+  const snappedPoint = ref(null)
+
+  // Pan state: offset origin by a fixed value (to get out from under UI elements)
+  const INITIAL_PAN_OFFSET_Y = 64 // px
+  const INITIAL_PAN_OFFSET_X = 72 // px
+  const pan = ref({ x: INITIAL_PAN_OFFSET_X, y: INITIAL_PAN_OFFSET_Y })
+  const isPanning = ref(false)
+  const lastPan = ref({ x: 0, y: 0 })
+  const mouseDownPos = ref(null)
 
   // --- UNIT & SCALE STATE ---
   const DPI = 96 // web standard, can be made user-configurable
@@ -108,7 +126,7 @@ export function useShapeEditor(
             const y = gy * scale + pan.y
             if (y >= 0) {
               ctx.beginPath()
-              ctx.arc(x, y, 2, 0, 2 * Math.PI)
+              ctx.arc(x, y, 1, 0, 2 * Math.PI)
               ctx.fill()
             }
           }
@@ -139,77 +157,6 @@ export function useShapeEditor(
     ctx.arc(pan.x, pan.y, 4, 0, 2 * Math.PI)
     ctx.fill()
     ctx.restore()
-  }
-
-  function findSnapPoint(x, y) {
-    // Check all points in shapes and currentShape (if polygon)
-    let closest = null
-    let minDist = snapRadius
-    // Check shapes
-    for (const shape of shapes.value) {
-      if (shape.type === 'line') {
-        for (const pt of [shape.start, shape.end]) {
-          const dist = Math.hypot(pt.x - x, pt.y - y)
-          if (dist < minDist) {
-            minDist = dist
-            closest = pt
-          }
-        }
-      } else if (shape.type === 'polygon') {
-        for (const pt of shape.points) {
-          const dist = Math.hypot(pt.x - x, pt.y - y)
-          if (dist < minDist) {
-            minDist = dist
-            closest = pt
-          }
-        }
-      }
-    }
-    // Optionally snap to current polygon points
-    if (currentShape.value && currentShape.value.type === 'polygon') {
-      for (const pt of currentShape.value.points) {
-        const dist = Math.hypot(pt.x - x, pt.y - y)
-        if (dist < minDist) {
-          minDist = dist
-          closest = pt
-        }
-      }
-    }
-    return closest
-  }
-
-  function hitTestShape(shape, x, y, tolerance = 8) {
-    if (shape.type === 'line') {
-      // Distance from point to line segment
-      const { start, end } = shape
-      const dx = end.x - start.x
-      const dy = end.y - start.y
-      const lengthSq = dx * dx + dy * dy
-      if (lengthSq === 0) return Math.hypot(x - start.x, y - start.y) < tolerance
-      let t = ((x - start.x) * dx + (y - start.y) * dy) / lengthSq
-      t = Math.max(0, Math.min(1, t))
-      const projX = start.x + t * dx
-      const projY = start.y + t * dy
-      return Math.hypot(x - projX, y - projY) < tolerance
-    } else if (shape.type === 'polygon') {
-      // Check if point is near any segment
-      const pts = shape.points
-      for (let i = 0; i < pts.length - 1; i++) {
-        const a = pts[i],
-          b = pts[i + 1]
-        const dx = b.x - a.x
-        const dy = b.y - a.y
-        const lengthSq = dx * dx + dy * dy
-        if (lengthSq === 0) continue
-        let t = ((x - a.x) * dx + (y - a.y) * dy) / lengthSq
-        t = Math.max(0, Math.min(1, t))
-        const projX = a.x + t * dx
-        const projY = a.y + t * dy
-        if (Math.hypot(x - projX, y - projY) < tolerance) return true
-      }
-      return false
-    }
-    return false
   }
 
   function drawAll() {
@@ -244,7 +191,7 @@ export function useShapeEditor(
     }
     ctx.restore()
     // Draw cursor overlay
-    if (hovering.value && !isPanning && mousePos.value) {
+    if (hovering.value && !isPanning.value && mousePos.value) {
       ctx.save()
       ctx.beginPath()
       if (snappedPoint.value) {
@@ -267,197 +214,86 @@ export function useShapeEditor(
     }
   }
 
-  function onMouseDown(e) {
-    if (e.button === 2) {
-      // right mouse button for panning
-      isPanning = true
-      lastPan = { x: e.clientX, y: e.clientY }
-      return
-    }
-    // Convert mouse to real-world units
-    let x = (e.offsetX - pan.value.x) / (pixelsPerUnit.value * zoom.value),
-      y = (e.offsetY - pan.value.y) / (pixelsPerUnit.value * zoom.value)
-    if (snapToGrid.value) {
-      const snapped = snapPointToGrid(x, y)
-      x = snapped.x
-      y = snapped.y
-    }
-    // Always check for snap at click time
-    const snap = findSnapPoint(x, y)
-    const usePt = snap ? { x: snap.x, y: snap.y } : { x, y }
-    if (shapeType.value === 'select') {
-      // Selection logic
-      let found = null
-      // Check from topmost shape to bottom
-      for (let i = shapes.value.length - 1; i >= 0; i--) {
-        if (hitTestShape(shapes.value[i], usePt.x, usePt.y)) {
-          found = shapes.value[i]
-          break
-        }
-      }
-      selectedShape.value = found
-      drawAll()
-      return
-    }
-    if (shapeType.value === 'line') {
-      if (!drawing.value) {
-        // First click or drag start: start line
-        drawing.value = true
-        currentShape.value = {
-          type: 'line',
-          start: { x: usePt.x, y: usePt.y },
-          end: { x: usePt.x, y: usePt.y }
-        }
-        mouseDownPos = { x: usePt.x, y: usePt.y }
-      } else {
-        // Second click: end line
-        currentShape.value.end = { x: usePt.x, y: usePt.y }
-        shapes.value.push(currentShape.value)
-        currentShape.value = null
-        drawing.value = false
-        mouseDownPos = null
-      }
-    } else if (shapeType.value === 'polygon') {
-      if (!drawing.value) {
-        // Start new polygon
-        drawing.value = true
-        currentShape.value = { type: 'polygon', points: [{ x: usePt.x, y: usePt.y }] }
-      } else {
-        // If click is near the first point and at least 3 points, close polygon
-        const points = currentShape.value.points
-        if (points.length > 2) {
-          const first = points[0]
-          const distToFirst = Math.hypot(usePt.x - first.x, usePt.y - first.y)
-          if (distToFirst < snapRadius) {
-            // Close polygon
-            delete currentShape.value.preview
-            shapes.value.push({
-              ...currentShape.value,
-              points: [...points, first]
-            })
-            currentShape.value = null
-            drawing.value = false
-            drawAll()
-            return
-          }
-        }
-        // Add point to polygon
-        currentShape.value.points.push({ x: usePt.x, y: usePt.y })
-      }
-    }
-    drawAll()
-  }
+  // Use the extracted onMouseDown handler
+  const onMouseDown = createOnMouseDown({
+    isPanning,
+    lastPan,
+    pan,
+    pixelsPerUnit,
+    zoom,
+    snapToGrid,
+    snapPointToGrid,
+    findSnapPoint,
+    shapeType,
+    shapes,
+    selectedShape,
+    drawing,
+    currentShape,
+    mouseDownPos,
+    snapRadius,
+    drawAll,
+    hitTestShape
+  })
 
-  function onMouseMove(e) {
-    if (isPanning) {
-      const dx = e.clientX - lastPan.x
-      const dy = e.clientY - lastPan.y
-      pan.value.x += dx
-      pan.value.y += dy
-      lastPan = { x: e.clientX, y: e.clientY }
-      drawAll()
-      return
-    }
-    if (!drawing.value && !hovering.value) return
-    // Convert mouse to real-world units
-    let x = (e.offsetX - pan.value.x) / (pixelsPerUnit.value * zoom.value),
-      y = (e.offsetY - pan.value.y) / (pixelsPerUnit.value * zoom.value)
-    let snappedGrid = null
-    if (snapToGrid.value) {
-      const snapped = snapPointToGrid(x, y)
-      x = snapped.x
-      y = snapped.y
-      snappedGrid = { x, y }
-    }
-    // Snapping logic
-    const snap = findSnapPoint(x, y)
-    if (snap) {
-      snappedPoint.value = { x: snap.x, y: snap.y }
-    } else if (snappedGrid) {
-      snappedPoint.value = { x: snappedGrid.x, y: snappedGrid.y }
-    } else {
-      snappedPoint.value = null
-    }
-    if (!drawing.value || !currentShape.value) {
-      drawAll()
-      return
-    }
-    const usePt = snappedPoint.value ? snappedPoint.value : { x, y }
-    if (shapeType.value === 'line') {
-      currentShape.value.end = { x: usePt.x, y: usePt.y }
-    } else if (shapeType.value === 'polygon') {
-      // Show preview of next segment
-      const points = currentShape.value.points
-      if (points.length > 0) {
-        currentShape.value.preview = { x: usePt.x, y: usePt.y }
-      }
-    }
-    drawAll()
-  }
+  // Use the extracted onMouseMove handler
+  const onMouseMove = createOnMouseMove({
+    hovering,
+    mousePos,
+    snappedPoint,
+    isPanning,
+    lastPan,
+    pan,
+    drawAll,
+    drawing,
+    pixelsPerUnit,
+    zoom,
+    snapToGrid,
+    snapPointToGrid,
+    findSnapPoint,
+    currentShape,
+    shapeType
+  })
 
-  function onMouseUp(e) {
-    if (isPanning && e.button === 2) {
-      isPanning = false
-      return
-    }
-    if (shapeType.value === 'line' && drawing.value && mouseDownPos) {
-      // If mouse has moved, treat as drag-to-draw
-      let x = (e.offsetX - pan.value.x) / (pixelsPerUnit.value * zoom.value),
-        y = (e.offsetY - pan.value.y) / (pixelsPerUnit.value * zoom.value)
-      const dist = Math.hypot(x - mouseDownPos.x, y - mouseDownPos.y)
-      if (dist > 2) {
-        // threshold to distinguish click vs drag
-        if (snapToGrid.value) {
-          const snapped = snapPointToGrid(x, y)
-          x = snapped.x
-          y = snapped.y
-        }
-        const snap = findSnapPoint(x, y)
-        const usePt = snap ? { x: snap.x, y: snap.y } : { x, y }
-        currentShape.value.end = { x: usePt.x, y: usePt.y }
-        shapes.value.push(currentShape.value)
-        currentShape.value = null
-        drawing.value = false
-        mouseDownPos = null
-      }
-    }
-    // For polygon, mouse up does not finalize the shape
-    drawAll()
-  }
+  // Use the extracted onMouseUp handler
+  const onMouseUp = createOnMouseUp({
+    isPanning,
+    pan,
+    pixelsPerUnit,
+    zoom,
+    shapeType,
+    drawing,
+    mouseDownPos,
+    snapToGrid,
+    snapPointToGrid,
+    findSnapPoint,
+    currentShape,
+    shapes,
+    drawAll
+  })
 
-  function onRightClick(e) {
-    // Prevent context menu, handled by Vue template
-  }
+  // Use the extracted onDblClick handler
+  const onDblClick = createOnDblClick({
+    shapeType,
+    drawing,
+    currentShape,
+    shapes,
+    drawAll
+  })
 
-  function onDblClick(e) {
-    if (shapeType.value === 'polygon' && drawing.value && currentShape.value) {
-      // Close polygon if at least 3 points
-      if (currentShape.value.points.length > 2) {
-        // Remove preview if exists
-        delete currentShape.value.preview
-        shapes.value.push({
-          ...currentShape.value,
-          // Ensure the polygon is closed by repeating the first point if needed
-          points: [...currentShape.value.points, currentShape.value.points[0]]
-        })
-        currentShape.value = null
-        drawing.value = false
-        drawAll()
-      }
-    }
-  }
+  // Use the extracted onRightClick handler
+  const onRightClick = createOnRightClick()
 
   function cancelDrawing() {
     drawing.value = false
     currentShape.value = null
-    mouseDownPos = null
+    mouseDownPos.value = null
     snappedPoint.value = null
     selectedShape.value = null
     drawAll()
   }
 
   function cancelPan() {
-    isPanning = false
+    isPanning.value = false
   }
 
   function setUnit(newUnit) {
@@ -479,22 +315,6 @@ export function useShapeEditor(
 
   function setGridSpacingUnits(newSpacing) {
     gridSpacingUnits.value = newSpacing
-    drawAll()
-  }
-
-  function addDefaultCube() {
-    // Always add a 100mm x 100mm square at the origin, regardless of unit
-    const size = 100 // 100mm
-    shapes.value.push({
-      type: 'polygon',
-      points: [
-        { x: 0, y: 0 },
-        { x: size, y: 0 },
-        { x: size, y: size },
-        { x: 0, y: size },
-        { x: 0, y: 0 }
-      ]
-    })
     drawAll()
   }
 
