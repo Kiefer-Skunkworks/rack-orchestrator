@@ -29,6 +29,9 @@
       <span v-if="activeTool === 'polygon'">✔ </span><PolygonIcon /> Polygon
       <span class="shortcut">(P)</span>
     </div>
+    <div v-if="hasSelection" class="context-menu-section">
+      <div class="context-menu-item" @click="onAction('delete')">🗑 Delete</div>
+    </div>
   </div>
 </template>
 
@@ -40,7 +43,9 @@ const props = defineProps({
   show: Boolean,
   position: Object,
   activeTool: String,
-  onSelect: Function
+  onSelect: Function,
+  hasSelection: Boolean,
+  onAction: Function
 })
 </script>
 
@@ -79,5 +84,11 @@ const props = defineProps({
   color: #aaa;
   margin-left: 4px;
   font-size: 0.95em;
+}
+
+.context-menu-section {
+  border-top: 1px solid #eee;
+  margin-top: 4px;
+  padding-top: 4px;
 }
 </style>

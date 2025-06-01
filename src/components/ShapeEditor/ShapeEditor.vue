@@ -72,6 +72,8 @@
       :position="contextMenuPos"
       :activeTool="shapeType"
       :onSelect="handleMenuSelect"
+      :hasSelection="!!selectedShape"
+      :onAction="handleContextMenuAction"
     />
   </div>
 </template>
@@ -82,6 +84,8 @@ import { useShapeEditor } from './useShapeEditor'
 import ToolBar from './ToolBar.vue'
 import ToolIndicator from './ToolIndicator.vue'
 import ContextMenu from './ContextMenu.vue'
+import { hitTestShape } from './shapeLogic'
+import { hitTestPolygonEdge } from './shapeLogic'
 
 const canvas = ref(null)
 const mousePos = ref({ x: 0, y: 0 })
@@ -95,6 +99,7 @@ const PAN_THRESHOLD = 5
 const CONTEXT_MENU_TIME = 400 // ms
 const showCopied = ref(false)
 const zoom = ref(1.0)
+const directSelectActiveForShape = ref(null)
 
 const {
   initCanvas,
@@ -119,7 +124,22 @@ const {
   showGridDots,
   setShowGridDots,
   showGrid,
-  setShowGrid
+  setShowGrid,
+  selectedShape,
+  selectedEdge,
+  selectPolygonEdge,
+  pan,
+  pixelsPerUnit,
+  draggingEdgeHandle,
+  handleEdgeHandleMouseDown,
+  handleEdgeHandleMouseMove,
+  handleEdgeHandleMouseUp,
+  selectedVertex,
+  selectPolygonVertex,
+  handleVertexMouseDown,
+  handleVertexMouseMove,
+  handleVertexMouseUp,
+  draggingVertex
 } = useShapeEditor(canvas, mousePos, hovering, zoom)
 
 // Proxy for v-model to call setUnit
@@ -149,6 +169,11 @@ const showGridProxy = computed({
 
 function setTool(tool) {
   shapeType.value = tool
+  // Deselect everything when switching tools
+  selectedShape.value = null
+  directSelectActiveForShape.value = null
+  if (selectedEdge.value) selectPolygonEdge(-10000, -10000)
+  if (selectedVertex.value) selectPolygonVertex(-10000, -10000)
 }
 
 function handleResize() {
@@ -158,6 +183,20 @@ function handleResize() {
 
 function handleMouseMove(e) {
   if (showContextMenu.value) return
+  if (draggingVertex.value !== null) {
+    const rect = canvas.value.getBoundingClientRect()
+    const sx = e.clientX - rect.left
+    const sy = e.clientY - rect.top
+    handleVertexMouseMove(sx, sy)
+    return
+  }
+  if (draggingEdgeHandle.value !== null) {
+    const rect = canvas.value.getBoundingClientRect()
+    const sx = e.clientX - rect.left
+    const sy = e.clientY - rect.top
+    handleEdgeHandleMouseMove(sx, sy)
+    return
+  }
   hovering.value = true
   mousePos.value = { x: e.offsetX, y: e.offsetY }
   onMouseMove(e)
@@ -169,6 +208,7 @@ function handleMouseLeave() {
 }
 
 function handleMouseDown(e) {
+  // Order: select → direct-select → drawing tools
   if (showContextMenu.value) return
   if (e.button === 2) {
     e.preventDefault()
@@ -179,11 +219,173 @@ function handleMouseDown(e) {
     onMouseDown(e)
     return
   }
+  const rect = canvas.value.getBoundingClientRect()
+  const sx = e.clientX - rect.left
+  const sy = e.clientY - rect.top
+
+  // --- Select Tool ---
+  if (shapeType.value === 'select') {
+    // If a shape is selected and direct select is active for it, allow direct select logic
+    if (
+      selectedShape.value &&
+      ((directSelectActiveForShape.value === selectedShape.value &&
+        selectedShape.value.type === 'polygon') ||
+        selectedShape.value.type === 'line') // Allow vertex selection for lines
+    ) {
+      if (handleVertexMouseDown(sx, sy)) return
+      if (selectedShape.value.type === 'polygon' && handleEdgeHandleMouseDown(sx, sy)) return
+      if (selectPolygonVertex(sx, sy, 10)) return
+      const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
+      const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
+      if (selectedShape.value && selectedShape.value.type === 'polygon') {
+        const edgeSelected = selectPolygonEdge(x, y, 8)
+        if (edgeSelected) return
+      }
+      // If click is outside the shape, exit subselect mode and clear selection
+      let clickedInside = false
+      if (selectedShape.value) {
+        if (selectedShape.value.type === 'line' || selectedShape.value.type === 'polygon') {
+          const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
+          const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
+          if (hitTestShape(selectedShape.value, x, y, 8)) {
+            clickedInside = true
+          }
+        }
+      }
+      if (!clickedInside) {
+        selectedShape.value = null
+        directSelectActiveForShape.value = null
+        if (selectedEdge.value) selectPolygonEdge(-10000, -10000)
+        if (selectedVertex.value) selectPolygonVertex(-10000, -10000)
+        return
+      }
+      // If click is on another shape, select that shape
+      for (const shape of shapes.value) {
+        if (shape !== selectedShape.value && (shape.type === 'line' || shape.type === 'polygon')) {
+          const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
+          const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
+          if (hitTestShape(shape, x, y, 8)) {
+            selectedShape.value = shape
+            directSelectActiveForShape.value = null
+            if (selectedEdge.value) selectPolygonEdge(-10000, -10000)
+            if (selectedVertex.value) selectPolygonVertex(-10000, -10000)
+            return
+          }
+        }
+      }
+      // Clear direct select state if clicking away
+      if (selectedEdge.value) selectPolygonEdge(-10000, -10000)
+      if (selectedVertex.value) selectPolygonVertex(-10000, -10000)
+      return
+    }
+    // --- Select Tool: Whole Shape Selection ---
+    let shapeClicked = false
+    for (const shape of shapes.value) {
+      if (shape.type === 'line' || shape.type === 'polygon') {
+        const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
+        const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
+        if (hitTestShape(shape, x, y, 8)) {
+          if (selectedShape.value === shape) {
+            // Second click: activate direct select for this shape (only polygons)
+            if (shape.type === 'polygon') {
+              directSelectActiveForShape.value = shape
+            }
+            // For lines, do not enter subselect mode
+          } else {
+            // First click: select the shape
+            selectedShape.value = shape
+            directSelectActiveForShape.value = null
+          }
+          shapeClicked = true
+          break
+        }
+      }
+    }
+    if (!shapeClicked) {
+      // Clicked away: clear selection and direct select state
+      selectedShape.value = null
+      directSelectActiveForShape.value = null
+      if (selectedEdge.value) selectPolygonEdge(-10000, -10000)
+      if (selectedVertex.value) selectPolygonVertex(-10000, -10000)
+    }
+    return
+  }
+
+  // --- Direct Select Tool ---
+  if (shapeType.value === 'direct-select') {
+    // Try to drag a vertex first
+    if (handleVertexMouseDown(sx, sy)) return
+    // Try to select a vertex/edge for any shape
+    for (const shape of shapes.value) {
+      if (shape.type === 'polygon' || shape.type === 'line') {
+        // Check vertices
+        let points = []
+        if (shape.type === 'polygon') {
+          points = shape.points
+        } else if (shape.type === 'line') {
+          points = [shape.start, shape.end]
+        }
+        for (let i = 0; i < points.length; i++) {
+          const pt = points[i]
+          const px = pt.x * pixelsPerUnit.value * zoom.value + pan.value.x
+          const py = pt.y * pixelsPerUnit.value * zoom.value + pan.value.y
+          if (Math.hypot(sx - px, sy - py) < 10) {
+            selectedShape.value = shape
+            selectedVertex.value = { shape, vertexIdx: i }
+            drawAll()
+            return
+          }
+        }
+        // Check edges (only for polygons)
+        if (shape.type === 'polygon') {
+          const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
+          const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
+          const idx = selectPolygonEdge ? hitTestPolygonEdge(shape, x, y, 8) : -1
+          if (idx !== -1) {
+            selectedShape.value = shape
+            selectedEdge.value = { shape, edgeIdx: idx }
+            drawAll()
+            return
+          }
+        }
+      }
+    }
+    // If not, try to select a shape
+    let shapeClicked = false
+    for (const shape of shapes.value) {
+      const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
+      const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
+      if (hitTestShape(shape, x, y, 8)) {
+        if (selectedShape.value !== shape) {
+          selectedShape.value = shape
+        }
+        shapeClicked = true
+        break
+      }
+    }
+    // Clear direct select state if clicking away
+    if (!shapeClicked) {
+      selectedShape.value = null
+      if (selectedEdge.value) selectPolygonEdge(-10000, -10000)
+      if (selectedVertex.value) selectPolygonVertex(-10000, -10000)
+    }
+    return
+  }
+
+  // --- Drawing Tools ---
   onMouseDown(e)
 }
 
 function handleMouseUp(e) {
   if (showContextMenu.value) return
+  if (draggingVertex.value !== null) {
+    handleVertexMouseUp()
+    return
+  }
+  if (draggingEdgeHandle.value !== null) {
+    handleEdgeHandleMouseUp()
+    return
+  }
   if (e.button === 2 && rightMouseDown.value) {
     e.preventDefault()
     const dx = e.clientX - rightMouseDownPos.value.x
@@ -244,8 +446,18 @@ function handleKeydown(e) {
     } else if (e.key === 'Escape') {
       if (drawing.value) {
         cancelDrawing()
+      } else if (shapeType.value === 'select' && directSelectActiveForShape.value) {
+        // Exit subselect mode
+        directSelectActiveForShape.value = null
+        if (selectedEdge.value) selectPolygonEdge(-10000, -10000)
+        if (selectedVertex.value) selectPolygonVertex(-10000, -10000)
+        return
       } else if (shapeType.value !== 'select') {
         shapeType.value = 'select'
+      } else if (selectedShape.value) {
+        selectedShape.value = null
+        if (selectedEdge.value) selectPolygonEdge(-10000, -10000)
+        if (selectedVertex.value) selectPolygonVertex(-10000, -10000)
       }
     }
   }
@@ -306,6 +518,24 @@ function zoomOut() {
 function resetZoom() {
   zoom.value = 1.0
   drawAll(zoom.value)
+}
+
+function handleContextMenuAction(action) {
+  if (action === 'delete') {
+    if (selectedShape.value) {
+      const idx = shapes.value.indexOf(selectedShape.value)
+      if (idx !== -1) {
+        shapes.value.splice(idx, 1)
+        selectedShape.value = null
+        drawAll(zoom.value)
+      }
+    }
+    showContextMenu.value = false
+  } else if (action === 'edit') {
+    // Placeholder for edit modal
+    alert('Edit Properties (not yet implemented)')
+    showContextMenu.value = false
+  }
 }
 
 onMounted(async () => {

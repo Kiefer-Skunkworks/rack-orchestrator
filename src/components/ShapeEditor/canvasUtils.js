@@ -89,3 +89,44 @@ export function drawShape(ctx, shape, pan, pixelsPerUnit, zoom) {
     throw err
   }
 }
+
+export function drawLineWithHandles(ctx, a, b, pan, pixelsPerUnit, zoom, handleRadius = 7) {
+  // Draw black outline
+  ctx.save()
+  ctx.strokeStyle = '#000'
+  ctx.lineWidth = 4
+  ctx.globalAlpha = 1.0
+  ctx.beginPath()
+  const aScreen = toScreenCoords(a, pan, pixelsPerUnit, zoom)
+  const bScreen = toScreenCoords(b, pan, pixelsPerUnit, zoom)
+  ctx.moveTo(aScreen.x, aScreen.y)
+  ctx.lineTo(bScreen.x, bScreen.y)
+  ctx.stroke()
+  ctx.restore()
+  // Draw white line
+  ctx.save()
+  ctx.strokeStyle = '#fff'
+  ctx.lineWidth = 2
+  ctx.globalAlpha = 1.0
+  ctx.beginPath()
+  ctx.moveTo(aScreen.x, aScreen.y)
+  ctx.lineTo(bScreen.x, bScreen.y)
+  ctx.stroke()
+  ctx.restore()
+  // Draw draggable handles at endpoints
+  ctx.save()
+  ctx.fillStyle = '#fff'
+  ctx.strokeStyle = '#000'
+  ctx.lineWidth = 2
+  // Start point
+  ctx.beginPath()
+  ctx.arc(aScreen.x, aScreen.y, handleRadius, 0, 2 * Math.PI)
+  ctx.fill()
+  ctx.stroke()
+  // End point
+  ctx.beginPath()
+  ctx.arc(bScreen.x, bScreen.y, handleRadius, 0, 2 * Math.PI)
+  ctx.fill()
+  ctx.stroke()
+  ctx.restore()
+}

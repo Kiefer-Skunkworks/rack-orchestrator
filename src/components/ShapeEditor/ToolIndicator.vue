@@ -3,12 +3,14 @@
     <span v-if="shapeType === 'line'"><LineIcon /> Line</span>
     <span v-else-if="shapeType === 'polygon'"><PolygonIcon /> Polygon</span>
     <span v-else-if="shapeType === 'select'"><SelectIcon /> Select</span>
+    <span v-else-if="shapeType === 'direct-select'"><DirectSelectIcon /> Direct Select</span>
     <!-- Add more icons for other tools as needed -->
   </div>
 </template>
 
 <script setup>
 import SelectIcon from './icons/SelectIcon.vue'
+import DirectSelectIcon from './icons/DirectSelectIcon.vue'
 import LineIcon from './icons/LineIcon.vue'
 import PolygonIcon from './icons/PolygonIcon.vue'
 const props = defineProps({

@@ -77,6 +77,32 @@ export function hitTestShape(shape, x, y, tolerance = 8) {
   return false
 }
 
+// Returns the index of the edge (segment) of a polygon closest to (x, y), or -1 if none are within tolerance
+export function hitTestPolygonEdge(polygon, x, y, tolerance = 8) {
+  if (!polygon || polygon.type !== 'polygon' || !polygon.points) return -1
+  const pts = polygon.points
+  let closestIdx = -1
+  let minDist = tolerance
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i],
+      b = pts[i + 1]
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const lengthSq = dx * dx + dy * dy
+    if (lengthSq === 0) continue
+    let t = ((x - a.x) * dx + (y - a.y) * dy) / lengthSq
+    t = Math.max(0, Math.min(1, t))
+    const projX = a.x + t * dx
+    const projY = a.y + t * dy
+    const dist = Math.hypot(x - projX, y - projY)
+    if (dist < minDist) {
+      minDist = dist
+      closestIdx = i
+    }
+  }
+  return closestIdx
+}
+
 // Add a default 100mm x 100mm square at the origin
 export function addDefaultCube() {
   const size = 100

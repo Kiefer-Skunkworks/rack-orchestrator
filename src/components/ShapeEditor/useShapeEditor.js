@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { drawShape } from './canvasUtils'
+import { drawShape, drawLineWithHandles } from './canvasUtils'
 import {
   shapes,
   currentShape,
@@ -8,7 +8,8 @@ import {
   snapRadius,
   findSnapPoint,
   hitTestShape,
-  addDefaultCube
+  addDefaultCube,
+  hitTestPolygonEdge
 } from './shapeLogic'
 import {
   createOnMouseMove,
@@ -30,7 +31,7 @@ export function useShapeEditor(
   let el // for canvas element
 
   // Tool/mode selector
-  const shapeType = ref('line')
+  const shapeType = ref('select')
 
   // Snapped point for cursor overlay and snapping logic
   const snappedPoint = ref(null)
@@ -60,6 +61,14 @@ export function useShapeEditor(
 
   const showGridDots = ref(true)
   const showGrid = ref(true)
+
+  // State for selected edge (for polygons)
+  const selectedEdge = ref(null) // { shape, edgeIdx } or null
+  // State for dragging edge handle: null (not dragging), 0 (start), 1 (end)
+  const draggingEdgeHandle = ref(null)
+  // State for selected vertex (for polygons)
+  const selectedVertex = ref(null) // { shape, vertexIdx } or null
+  const draggingVertex = ref(null) // vertexIdx or null
 
   function initCanvas() {
     el = canvas.value
@@ -169,11 +178,56 @@ export function useShapeEditor(
       try {
         if (selectedShape.value === shape) {
           ctx.save()
-          ctx.shadowColor = '#1ec41e'
-          ctx.shadowBlur = 8
           ctx.lineWidth = 4
           ctx.globalAlpha = 0.7
           drawShape(ctx, shape, pan.value, pixelsPerUnit.value, zoom.value)
+          // Highlight selected edge if present (polygon only)
+          if (selectedEdge.value && selectedEdge.value.shape === shape) {
+            const idx = selectedEdge.value.edgeIdx
+            if (
+              shape.type === 'polygon' &&
+              shape.points &&
+              idx >= 0 &&
+              idx < shape.points.length - 1
+            ) {
+              const a = shape.points[idx],
+                b = shape.points[idx + 1]
+              drawLineWithHandles(ctx, a, b, pan.value, pixelsPerUnit.value, zoom.value)
+            }
+          }
+          // Highlight selected line with endpoints if shape is a line
+          if (shape.type === 'line') {
+            const a = shape.start,
+              b = shape.end
+            drawLineWithHandles(ctx, a, b, pan.value, pixelsPerUnit.value, zoom.value)
+          }
+          // Highlight selected vertex (for both polygons and lines)
+          if (selectedVertex.value && selectedVertex.value.shape === shape) {
+            const idx = selectedVertex.value.vertexIdx
+            let pt = null
+            if (shape.type === 'polygon' && shape.points && idx >= 0 && idx < shape.points.length) {
+              pt = shape.points[idx]
+            } else if (shape.type === 'line' && (idx === 0 || idx === 1)) {
+              pt = idx === 0 ? shape.start : shape.end
+            }
+            if (pt) {
+              ctx.save()
+              ctx.fillStyle = '#007bff'
+              ctx.strokeStyle = '#fff'
+              ctx.lineWidth = 2
+              ctx.beginPath()
+              ctx.arc(
+                pt.x * pixelsPerUnit.value * zoom.value + pan.value.x,
+                pt.y * pixelsPerUnit.value * zoom.value + pan.value.y,
+                8,
+                0,
+                2 * Math.PI
+              )
+              ctx.fill()
+              ctx.stroke()
+              ctx.restore()
+            }
+          }
           ctx.restore()
         } else {
           drawShape(ctx, shape, pan.value, pixelsPerUnit.value, zoom.value)
@@ -379,6 +433,161 @@ export function useShapeEditor(
     drawAll()
   }
 
+  // Function to select an edge of a polygon (if selectedShape is a polygon)
+  function selectPolygonEdge(x, y, tolerance = 8) {
+    if (selectedShape.value && selectedShape.value.type === 'polygon') {
+      const idx = hitTestPolygonEdge(selectedShape.value, x, y, tolerance)
+      if (idx !== -1) {
+        selectedEdge.value = { shape: selectedShape.value, edgeIdx: idx }
+        drawAll()
+        return true
+      }
+    }
+    selectedEdge.value = null
+    drawAll()
+    return false
+  }
+
+  // --- Edge handle drag logic ---
+  function getEdgeHandleUnderCursor(x, y) {
+    // Returns 0 if near start, 1 if near end, or null
+    if (!selectedEdge.value) return null
+    const shape = selectedEdge.value.shape
+    const idx = selectedEdge.value.edgeIdx
+    if (!shape || !shape.points || idx < 0 || idx >= shape.points.length - 1) return null
+    const a = shape.points[idx],
+      b = shape.points[idx + 1]
+    const pxA = a.x * pixelsPerUnit.value * zoom.value + pan.value.x
+    const pyA = a.y * pixelsPerUnit.value * zoom.value + pan.value.y
+    const pxB = b.x * pixelsPerUnit.value * zoom.value + pan.value.x
+    const pyB = b.y * pixelsPerUnit.value * zoom.value + pan.value.y
+    const distA = Math.hypot(x - pxA, y - pyA)
+    const distB = Math.hypot(x - pxB, y - pyB)
+    const handleRadius = 10
+    if (distA < handleRadius) return 0
+    if (distB < handleRadius) return 1
+    return null
+  }
+
+  function handleEdgeHandleMouseDown(x, y) {
+    const handle = getEdgeHandleUnderCursor(x, y)
+    if (handle !== null) {
+      draggingEdgeHandle.value = handle
+      return true
+    }
+    return false
+  }
+
+  function handleEdgeHandleMouseMove(x, y) {
+    if (draggingEdgeHandle.value === null || !selectedEdge.value) return false
+    const shape = selectedEdge.value.shape
+    const idx = selectedEdge.value.edgeIdx
+    if (!shape || !shape.points || idx < 0 || idx >= shape.points.length - 1) return false
+    // Convert x, y from screen to world coordinates
+    let wx = (x - pan.value.x) / (pixelsPerUnit.value * zoom.value)
+    let wy = (y - pan.value.y) / (pixelsPerUnit.value * zoom.value)
+    if (snapToGrid.value) {
+      const snapped = snapPointToGrid(wx, wy)
+      wx = snapped.x
+      wy = snapped.y
+    }
+    if (draggingEdgeHandle.value === 0) {
+      shape.points[idx].x = wx
+      shape.points[idx].y = wy
+    } else if (draggingEdgeHandle.value === 1) {
+      shape.points[idx + 1].x = wx
+      shape.points[idx + 1].y = wy
+    }
+    drawAll()
+    return true
+  }
+
+  function handleEdgeHandleMouseUp() {
+    draggingEdgeHandle.value = null
+  }
+
+  // --- Vertex selection and drag logic ---
+  function getVertexUnderCursor(x, y, tolerance = 10) {
+    if (
+      !selectedShape.value ||
+      (selectedShape.value.type !== 'polygon' && selectedShape.value.type !== 'line')
+    )
+      return null
+    const shape = selectedShape.value
+    let points = []
+    if (shape.type === 'polygon') {
+      points = shape.points
+    } else if (shape.type === 'line') {
+      points = [shape.start, shape.end]
+    }
+    for (let i = 0; i < points.length; i++) {
+      const pt = points[i]
+      const px = pt.x * pixelsPerUnit.value * zoom.value + pan.value.x
+      const py = pt.y * pixelsPerUnit.value * zoom.value + pan.value.y
+      if (Math.hypot(x - px, y - py) < tolerance) {
+        return i
+      }
+    }
+    return null
+  }
+
+  function selectPolygonVertex(x, y, tolerance = 10) {
+    if (
+      !selectedShape.value ||
+      (selectedShape.value.type !== 'polygon' && selectedShape.value.type !== 'line')
+    ) {
+      selectedVertex.value = null
+      return false
+    }
+    const idx = getVertexUnderCursor(x, y, tolerance)
+    if (idx !== null) {
+      selectedVertex.value = { shape: selectedShape.value, vertexIdx: idx }
+      drawAll()
+      return true
+    }
+    selectedVertex.value = null
+    drawAll()
+    return false
+  }
+
+  function handleVertexMouseDown(x, y) {
+    const idx = getVertexUnderCursor(x, y)
+    if (idx !== null) {
+      draggingVertex.value = idx
+      selectedVertex.value = { shape: selectedShape.value, vertexIdx: idx }
+      return true
+    }
+    return false
+  }
+
+  function handleVertexMouseMove(x, y) {
+    if (draggingVertex.value === null || !selectedVertex.value) return false
+    const shape = selectedVertex.value.shape
+    const idx = draggingVertex.value
+    let points = []
+    if (shape.type === 'polygon') {
+      points = shape.points
+    } else if (shape.type === 'line') {
+      points = [shape.start, shape.end]
+    }
+    if (!shape || !points || idx < 0 || idx >= points.length) return false
+    let wx = (x - pan.value.x) / (pixelsPerUnit.value * zoom.value)
+    let wy = (y - pan.value.y) / (pixelsPerUnit.value * zoom.value)
+    if (snapToGrid.value) {
+      const snapped = snapPointToGrid(wx, wy)
+      wx = snapped.x
+      wy = snapped.y
+    }
+    points[idx].x = wx
+    points[idx].y = wy
+    drawAll()
+    return true
+  }
+
+  function handleVertexMouseUp() {
+    draggingVertex.value = null
+  }
+
   return {
     initCanvas,
     onMouseDown,
@@ -391,6 +600,7 @@ export function useShapeEditor(
     shapeType,
     snappedPoint,
     selectedShape,
+    selectedEdge,
     drawing,
     cancelPan,
     shapes,
@@ -410,6 +620,18 @@ export function useShapeEditor(
     showGridDots,
     setShowGridDots,
     showGrid,
-    setShowGrid
+    setShowGrid,
+    selectPolygonEdge,
+    pan,
+    draggingEdgeHandle,
+    handleEdgeHandleMouseDown,
+    handleEdgeHandleMouseMove,
+    handleEdgeHandleMouseUp,
+    selectedVertex,
+    selectPolygonVertex,
+    handleVertexMouseDown,
+    handleVertexMouseMove,
+    handleVertexMouseUp,
+    draggingVertex
   }
 }
