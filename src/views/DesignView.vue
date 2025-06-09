@@ -1,11 +1,13 @@
 <template>
   <!-- Design is a cad-like experience where we can design our projects. -->
   <div class="designer">
-
+    <ShapeEditor />
   </div>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import ShapeEditor from '@/components/ShapeEditor/ShapeEditor.vue';
+</script>
 
 <style scoped>
   .designer {
@@ -18,7 +20,7 @@
   }
 
   /* draw a grid inside the designer */
-  .designer::before {
+  .designer-off::before {
     content: "";
     display: block;
     position: absolute;
@@ -29,5 +31,6 @@
     background-image: linear-gradient(to right, var(--color-border) 1px, transparent 1px),
                       linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
     background-size: 1rem 1rem;
+    pointer-events: none;
   }
 </style>
