@@ -13,7 +13,8 @@ export function createOnMouseMove({
   snapPointToGrid,
   findSnapPoint,
   currentShape,
-  shapeType
+  shapeType,
+  visualSnapRadius
 }) {
   return function onMouseMove(e) {
     hovering.value = true
@@ -36,7 +37,7 @@ export function createOnMouseMove({
       y = snapped.y
       snappedGrid = { x, y }
     }
-    const snap = findSnapPoint(x, y)
+    const snap = findSnapPoint(x, y, visualSnapRadius.value)
     if (snap) {
       snappedPoint.value = { x: snap.x, y: snap.y }
     } else if (snappedGrid) {
@@ -76,7 +77,7 @@ export function createOnMouseDown({
   drawing,
   currentShape,
   mouseDownPos,
-  snapRadius,
+  visualSnapRadius,
   drawAll,
   hitTestShape
 }) {
@@ -93,7 +94,7 @@ export function createOnMouseDown({
       x = snapped.x
       y = snapped.y
     }
-    const snap = findSnapPoint(x, y)
+    const snap = findSnapPoint(x, y, visualSnapRadius.value)
     const usePt = snap ? { x: snap.x, y: snap.y } : { x, y }
     if (shapeType.value === 'select') {
       let found = null
@@ -132,7 +133,7 @@ export function createOnMouseDown({
         if (points.length > 2) {
           const first = points[0]
           const distToFirst = Math.hypot(usePt.x - first.x, usePt.y - first.y)
-          if (distToFirst < snapRadius) {
+          if (distToFirst < visualSnapRadius.value) {
             delete currentShape.value.preview
             shapes.value.push({
               ...currentShape.value,
@@ -164,7 +165,8 @@ export function createOnMouseUp({
   findSnapPoint,
   currentShape,
   shapes,
-  drawAll
+  drawAll,
+  visualSnapRadius
 }) {
   return function onMouseUp(e) {
     if (isPanning.value && e.button === 2) {
@@ -181,7 +183,7 @@ export function createOnMouseUp({
           x = snapped.x
           y = snapped.y
         }
-        const snap = findSnapPoint(x, y)
+        const snap = findSnapPoint(x, y, visualSnapRadius.value)
         const usePt = snap ? { x: snap.x, y: snap.y } : { x, y }
         currentShape.value.end = { x: usePt.x, y: usePt.y }
         shapes.value.push(currentShape.value)

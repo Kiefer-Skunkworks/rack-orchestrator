@@ -1,11 +1,10 @@
 import { ref, computed } from 'vue'
-import { drawShape, drawLineWithHandles } from './canvasUtils'
+import { drawShape, drawLineWithHandles, toScreenCoords } from './canvasUtils'
 import {
   shapes,
   currentShape,
   drawing,
   selectedShape,
-  snapRadius,
   findSnapPoint,
   hitTestShape,
   addDefaultCube,
@@ -19,7 +18,8 @@ import {
   createOnRightClick
 } from './shapeEditorHandlers'
 
-const gridSpacing = 32 // grid spacing in px
+// Grid spacing constant (unused but kept for reference)
+// const gridSpacing = 32 // grid spacing in px
 
 export function useShapeEditor(
   canvas,
@@ -58,6 +58,22 @@ export function useShapeEditor(
   }
 
   const currentGridSizeOptions = computed(() => gridSizeOptions[unit.value])
+
+  // Compute snap radius based on current unit to maintain consistent visual size
+  const visualSnapRadius = computed(() => {
+    // Target visual snap radius in pixels (approximately 10 pixels)
+    const targetPixels = 10
+    // Convert to world coordinates based on current unit
+    return targetPixels / (pixelsPerUnit.value * zoom.value)
+  })
+
+  // Compute hit test tolerance based on current unit to maintain consistent visual size
+  const visualHitTolerance = computed(() => {
+    // Target visual tolerance in pixels (approximately 8 pixels)
+    const targetPixels = 8
+    // Convert to world coordinates based on current unit
+    return targetPixels / (pixelsPerUnit.value * zoom.value)
+  })
 
   const showGridDots = ref(true)
   const showGrid = ref(true)
@@ -146,7 +162,7 @@ export function useShapeEditor(
     ctx.restore()
   }
 
-  function drawAxes(ctx, width, height, pan, pxPerUnit = pixelsPerUnit.value) {
+  function drawAxes(ctx, width, height, pan) {
     ctx.save()
     ctx.strokeStyle = '#aaa'
     ctx.lineWidth = 2
@@ -168,12 +184,111 @@ export function useShapeEditor(
     ctx.restore()
   }
 
+  function drawCoordinateLabels() {
+    ctx.save()
+    ctx.font = '12px Arial'
+    ctx.fillStyle = '#666'
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+
+    for (let i = 0; i < shapes.value.length; i++) {
+      const shape = shapes.value[i]
+      // Skip hidden shapes in coordinate labels
+      if (shape.visible === false) continue
+      if (shape.type === 'line') {
+        // Label start point
+        const startScreen = toScreenCoords(shape.start, pan.value, pixelsPerUnit.value, zoom.value)
+        ctx.fillText(
+          `S${i}: (${shape.start.x.toFixed(1)}, ${shape.start.y.toFixed(1)})`,
+          startScreen.x + 5,
+          startScreen.y - 15
+        )
+
+        // Label end point
+        const endScreen = toScreenCoords(shape.end, pan.value, pixelsPerUnit.value, zoom.value)
+        ctx.fillText(
+          `E${i}: (${shape.end.x.toFixed(1)}, ${shape.end.y.toFixed(1)})`,
+          endScreen.x + 5,
+          endScreen.y - 15
+        )
+      } else if (shape.type === 'polygon') {
+        for (let j = 0; j < shape.points.length; j++) {
+          const point = shape.points[j]
+          const pointScreen = toScreenCoords(point, pan.value, pixelsPerUnit.value, zoom.value)
+          ctx.fillText(
+            `P${i}-${j}: (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`,
+            pointScreen.x + 5,
+            pointScreen.y - 15
+          )
+        }
+      }
+    }
+
+    // Label current shape if drawing
+    if (currentShape.value) {
+      if (currentShape.value.type === 'line') {
+        const startScreen = toScreenCoords(
+          currentShape.value.start,
+          pan.value,
+          pixelsPerUnit.value,
+          zoom.value
+        )
+        ctx.fillStyle = '#f00'
+        ctx.fillText(
+          `CURRENT S: (${currentShape.value.start.x.toFixed(1)}, ${currentShape.value.start.y.toFixed(1)})`,
+          startScreen.x + 5,
+          startScreen.y - 15
+        )
+
+        const endScreen = toScreenCoords(
+          currentShape.value.end,
+          pan.value,
+          pixelsPerUnit.value,
+          zoom.value
+        )
+        ctx.fillText(
+          `CURRENT E: (${currentShape.value.end.x.toFixed(1)}, ${currentShape.value.end.y.toFixed(1)})`,
+          endScreen.x + 5,
+          endScreen.y - 15
+        )
+      } else if (currentShape.value.type === 'polygon') {
+        for (let j = 0; j < currentShape.value.points.length; j++) {
+          const point = currentShape.value.points[j]
+          const pointScreen = toScreenCoords(point, pan.value, pixelsPerUnit.value, zoom.value)
+          ctx.fillStyle = '#f00'
+          ctx.fillText(
+            `CURRENT P${j}: (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`,
+            pointScreen.x + 5,
+            pointScreen.y - 15
+          )
+        }
+      }
+    }
+
+    // Label grid spacing and unit info
+    // TODO: Move this to a panel or something
+    ctx.fillStyle = '#000'
+    ctx.fillText(
+      `Unit: ${unit.value}, Grid: ${gridSpacingUnits.value}${unit.value}, Pixels/Unit: ${pixelsPerUnit.value.toFixed(2)}`,
+      65,
+      10
+    )
+
+    ctx.restore()
+  }
+
   function drawAll() {
     ctx.clearRect(0, 0, el.width, el.height)
     drawGrid(ctx, el.width, el.height, pan.value, gridSpacingUnits.value, pixelsPerUnit.value)
     drawAxes(ctx, el.width, el.height, pan.value, pixelsPerUnit.value)
     ctx.save()
+
+    // Draw coordinate labels for debugging
+    drawCoordinateLabels()
     for (let shape of shapes.value) {
+      // Skip hidden shapes
+      if (shape.visible === false) continue
+
       // Highlight selected shape
       try {
         if (selectedShape.value === shape) {
@@ -284,7 +399,7 @@ export function useShapeEditor(
     drawing,
     currentShape,
     mouseDownPos,
-    snapRadius,
+    visualSnapRadius,
     drawAll,
     hitTestShape
   })
@@ -305,7 +420,8 @@ export function useShapeEditor(
     snapPointToGrid,
     findSnapPoint,
     currentShape,
-    shapeType
+    shapeType,
+    visualSnapRadius
   })
 
   // Use the extracted onMouseUp handler
@@ -322,7 +438,8 @@ export function useShapeEditor(
     findSnapPoint,
     currentShape,
     shapes,
-    drawAll
+    drawAll,
+    visualSnapRadius
   })
 
   // Use the extracted onDblClick handler
@@ -351,7 +468,38 @@ export function useShapeEditor(
   }
 
   function setUnit(newUnit) {
+    const oldUnit = unit.value
     unit.value = newUnit
+
+    // Convert existing shape coordinates to maintain the same visual size
+    if (oldUnit !== newUnit) {
+      const conversionFactor = oldUnit === 'mm' ? 1 / 25.4 : 25.4 // mm to in or in to mm
+
+      for (const shape of shapes.value) {
+        if (shape.type === 'line') {
+          shape.start.x *= conversionFactor
+          shape.start.y *= conversionFactor
+          shape.end.x *= conversionFactor
+          shape.end.y *= conversionFactor
+        } else if (shape.type === 'polygon') {
+          // For polygons, we need to be careful not to convert the same point twice
+          // if the first and last points are the same object (for closed polygons)
+          const points = shape.points
+          const firstPoint = points[0]
+          const lastPoint = points[points.length - 1]
+
+          // Convert all points except the last one if it's the same as the first
+          const endIndex = firstPoint === lastPoint ? points.length - 1 : points.length
+
+          for (let i = 0; i < endIndex; i++) {
+            const point = points[i]
+            point.x *= conversionFactor
+            point.y *= conversionFactor
+          }
+        }
+      }
+    }
+
     if (newUnit === 'mm') {
       pixelsPerUnit.value = DPI / 25.4
       // If current grid spacing is not valid for mm, reset to default
@@ -580,6 +728,22 @@ export function useShapeEditor(
     }
     points[idx].x = wx
     points[idx].y = wy
+
+    // For closed polygons, keep first and last points synchronized
+    if (shape.type === 'polygon' && points.length > 2) {
+      const first = points[0]
+      const last = points[points.length - 1]
+      if (idx === 0) {
+        // If dragging first point, update last point to match
+        last.x = first.x
+        last.y = first.y
+      } else if (idx === points.length - 1) {
+        // If dragging last point, update first point to match
+        first.x = last.x
+        first.y = last.y
+      }
+    }
+
     drawAll()
     return true
   }
@@ -604,6 +768,8 @@ export function useShapeEditor(
     drawing,
     cancelPan,
     shapes,
+    visualSnapRadius,
+    visualHitTolerance,
     // --- UNIT/GRID API ---
     unit,
     setUnit,

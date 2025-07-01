@@ -6,11 +6,12 @@ export const currentShape = ref(null)
 export const drawing = ref(false)
 export const selectedShape = ref(null)
 
-// Snap radius for snapping logic
+// Snap radius for snapping logic (in world coordinates)
+// This will be scaled based on the current unit to maintain consistent visual size
 export const snapRadius = 10
 
 // Find the closest snap point among all shapes and currentShape (if polygon)
-export function findSnapPoint(x, y) {
+export function findSnapPoint(x, y, snapRadius = 10) {
   let closest = null
   let minDist = snapRadius
   for (const shape of shapes.value) {

@@ -65,4 +65,26 @@ npm run lint
 
 # TODO
 
+## Shape Editor Features
+
 - [ ] Delete from direct select (edge and vertex/point)
+- [ ] Better styling and visual polish for layer panel
+- [ ] Drag and drop reordering in layer panel
+- [ ] Layer grouping functionality
+- [ ] Advanced filtering/searching in layer panel
+- [ ] Keyboard shortcuts for common actions
+- [ ] Context menus for layer panel items
+- [ ] Shape properties panel (dimensions, coordinates, etc.)
+- [ ] Undo/Redo functionality
+- [ ] Save/Load project files
+- [ ] Export to different formats (DXF, PDF, etc.)
+- [ ] Grid customization (custom grid patterns, snap angles)
+- [ ] Measurement tools (distance, angle, area)
+- [ ] Shape alignment tools
+- [ ] Copy/Paste functionality
+- [ ] Multi-select shapes
+- [ ] Shape transformation tools (rotate, scale, mirror)
+- [ ] Layer visibility presets
+- [ ] Shape templates library
+- [ ] Auto-save functionality
+- [ ] Performance optimizations for large drawings

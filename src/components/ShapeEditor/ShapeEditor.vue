@@ -66,6 +66,15 @@
       @mouseleave="handleMouseLeave"
       @contextmenu.prevent="handleContextMenu"
     ></canvas>
+    <LayerPanel
+      :shapes="shapes"
+      :selectedShape="selectedShape"
+      @select-shape="handleLayerSelect"
+      @delete-shape="handleLayerDelete"
+      @duplicate-shape="handleLayerDuplicate"
+      @toggle-visibility="handleLayerToggleVisibility"
+      @update-shape-name="handleLayerUpdateName"
+    />
     <ToolIndicator :shapeType="shapeType" />
     <ContextMenu
       :show="showContextMenu"
@@ -84,6 +93,7 @@ import { useShapeEditor } from './useShapeEditor'
 import ToolBar from './ToolBar.vue'
 import ToolIndicator from './ToolIndicator.vue'
 import ContextMenu from './ContextMenu.vue'
+import LayerPanel from './LayerPanel.vue'
 import { hitTestShape } from './shapeLogic'
 import { hitTestPolygonEdge } from './shapeLogic'
 
@@ -139,7 +149,8 @@ const {
   handleVertexMouseDown,
   handleVertexMouseMove,
   handleVertexMouseUp,
-  draggingVertex
+  draggingVertex,
+  visualHitTolerance
 } = useShapeEditor(canvas, mousePos, hovering, zoom)
 
 // Proxy for v-model to call setUnit
@@ -216,6 +227,7 @@ function handleMouseDown(e) {
     rightMouseDownPos.value = { x: e.clientX, y: e.clientY }
     rightMouseDownTime.value = Date.now()
     // Start pan logic
+    canvas.value.classList.add('panning')
     onMouseDown(e)
     return
   }
@@ -238,7 +250,7 @@ function handleMouseDown(e) {
       const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
       const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
       if (selectedShape.value && selectedShape.value.type === 'polygon') {
-        const edgeSelected = selectPolygonEdge(x, y, 8)
+        const edgeSelected = selectPolygonEdge(x, y, visualHitTolerance.value)
         if (edgeSelected) return
       }
       // If click is outside the shape, exit subselect mode and clear selection
@@ -247,7 +259,7 @@ function handleMouseDown(e) {
         if (selectedShape.value.type === 'line' || selectedShape.value.type === 'polygon') {
           const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
           const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
-          if (hitTestShape(selectedShape.value, x, y, 8)) {
+          if (hitTestShape(selectedShape.value, x, y, visualHitTolerance.value)) {
             clickedInside = true
           }
         }
@@ -264,7 +276,7 @@ function handleMouseDown(e) {
         if (shape !== selectedShape.value && (shape.type === 'line' || shape.type === 'polygon')) {
           const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
           const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
-          if (hitTestShape(shape, x, y, 8)) {
+          if (hitTestShape(shape, x, y, visualHitTolerance.value)) {
             selectedShape.value = shape
             directSelectActiveForShape.value = null
             if (selectedEdge.value) selectPolygonEdge(-10000, -10000)
@@ -284,7 +296,7 @@ function handleMouseDown(e) {
       if (shape.type === 'line' || shape.type === 'polygon') {
         const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
         const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
-        if (hitTestShape(shape, x, y, 8)) {
+        if (hitTestShape(shape, x, y, visualHitTolerance.value)) {
           if (selectedShape.value === shape) {
             // Second click: activate direct select for this shape (only polygons)
             if (shape.type === 'polygon') {
@@ -340,7 +352,9 @@ function handleMouseDown(e) {
         if (shape.type === 'polygon') {
           const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
           const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
-          const idx = selectPolygonEdge ? hitTestPolygonEdge(shape, x, y, 8) : -1
+          const idx = selectPolygonEdge
+            ? hitTestPolygonEdge(shape, x, y, visualHitTolerance.value)
+            : -1
           if (idx !== -1) {
             selectedShape.value = shape
             selectedEdge.value = { shape, edgeIdx: idx }
@@ -355,7 +369,7 @@ function handleMouseDown(e) {
     for (const shape of shapes.value) {
       const x = (sx - pan.value.x) / (pixelsPerUnit.value * zoom.value)
       const y = (sy - pan.value.y) / (pixelsPerUnit.value * zoom.value)
-      if (hitTestShape(shape, x, y, 8)) {
+      if (hitTestShape(shape, x, y, visualHitTolerance.value)) {
         if (selectedShape.value !== shape) {
           selectedShape.value = shape
         }
@@ -393,6 +407,7 @@ function handleMouseUp(e) {
     const dist = Math.hypot(dx, dy)
     const dt = Date.now() - rightMouseDownTime.value
     rightMouseDown.value = false
+    canvas.value.classList.remove('panning')
     cancelPan()
     onMouseUp(e)
     if (dist < PAN_THRESHOLD && dt < CONTEXT_MENU_TIME) {
@@ -404,6 +419,7 @@ function handleMouseUp(e) {
     // Otherwise, treat as pan (already handled in composable)
     return
   }
+
   onMouseUp(e)
 }
 
@@ -538,6 +554,61 @@ function handleContextMenuAction(action) {
   }
 }
 
+// Layer panel handlers
+function handleLayerSelect(shape) {
+  selectedShape.value = shape
+  directSelectActiveForShape.value = null
+  if (selectedEdge.value) selectPolygonEdge(-10000, -10000)
+  if (selectedVertex.value) selectPolygonVertex(-10000, -10000)
+  drawAll(zoom.value)
+}
+
+function handleLayerDelete(shape) {
+  const idx = shapes.value.indexOf(shape)
+  if (idx !== -1) {
+    shapes.value.splice(idx, 1)
+    if (selectedShape.value === shape) {
+      selectedShape.value = null
+    }
+    drawAll(zoom.value)
+  }
+}
+
+function handleLayerDuplicate(shape) {
+  const duplicatedShape = JSON.parse(JSON.stringify(shape))
+  if (duplicatedShape.name) {
+    duplicatedShape.name = duplicatedShape.name + ' (Copy)'
+  }
+  // Offset the duplicated shape slightly
+  if (duplicatedShape.type === 'line') {
+    duplicatedShape.start.x += 10
+    duplicatedShape.start.y += 10
+    duplicatedShape.end.x += 10
+    duplicatedShape.end.y += 10
+  } else if (duplicatedShape.type === 'polygon') {
+    duplicatedShape.points.forEach((point) => {
+      point.x += 10
+      point.y += 10
+    })
+  }
+  shapes.value.push(duplicatedShape)
+  drawAll(zoom.value)
+}
+
+function handleLayerToggleVisibility(shape) {
+  if (shape.visible === false) {
+    shape.visible = true
+  } else {
+    shape.visible = false
+  }
+  drawAll(zoom.value)
+}
+
+function handleLayerUpdateName(shape, newName) {
+  shape.name = newName
+  drawAll(zoom.value)
+}
+
 onMounted(async () => {
   await nextTick()
   initCanvas()
@@ -572,6 +643,8 @@ onUnmounted(() => {
   align-items: flex-start;
   z-index: 10;
   pointer-events: none;
+  /* TODO: Fix this with layer width or move... */
+  padding-right: 250px;
 }
 
 .editor-top-center {
@@ -611,6 +684,7 @@ onUnmounted(() => {
   padding-right: 0;
   gap: 8px;
   pointer-events: auto;
+  flex-shrink: 0;
 }
 
 .shape-editor canvas {
@@ -618,6 +692,10 @@ onUnmounted(() => {
   background-color: #fff;
   width: 100%;
   height: 100%;
+}
+
+.shape-editor canvas.panning {
+  cursor: grabbing;
 }
 
 .export-svg-btn {
