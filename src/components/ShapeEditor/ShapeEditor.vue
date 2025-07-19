@@ -641,7 +641,6 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  z-index: 10;
   pointer-events: none;
   /* TODO: Fix this with layer width or move... */
   padding-right: 250px;
@@ -677,7 +676,6 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  z-index: 100;
   padding-top: 16px;
   padding-bottom: 0;
   padding-left: 0;

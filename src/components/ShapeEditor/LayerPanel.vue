@@ -141,7 +141,6 @@ function getShapePointCount(shape) {
   display: flex;
   flex-direction: column;
   height: 100%;
-  z-index: 50;
 }
 
 .layer-panel-header {

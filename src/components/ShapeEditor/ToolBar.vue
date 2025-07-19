@@ -186,7 +186,6 @@ if (typeof window !== 'undefined') {
   border: 1px solid #ccc;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  z-index: 10;
   min-width: 130px;
   padding: 4px 0;
   display: flex;

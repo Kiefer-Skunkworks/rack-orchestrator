@@ -29,7 +29,6 @@ const props = defineProps({
   border-radius: 4px;
   padding: 4px 8px;
   font-size: 1rem;
-  z-index: 10;
   pointer-events: none;
   user-select: none;
   color: #fff;
