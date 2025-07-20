@@ -14,10 +14,11 @@
 </template>
 
 <script>
-import { defineComponent, ref } from 'vue';
-import { useProjectStore } from '@/stores/project';
+import { defineComponent, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useProjectStore } from '@/stores/project'
 
-import OpenFileModal from '@/components/OpenProjectModal.vue';
+import OpenFileModal from '@/components/OpenProjectModal.vue'
 
 export default defineComponent({
   name: 'MenuBar',
@@ -27,48 +28,49 @@ export default defineComponent({
   data() {
     return {
       showOpenFileModal: false
-    };
+    }
   },
   setup() {
-    const projectStore = useProjectStore();
+    const projectStore = useProjectStore()
+    const router = useRouter()
 
     const menus = ref([
       {
         name: 'File',
         items: [
-          { 
-            name: 'New Project', 
+          {
+            name: 'New Project',
             action: () => {
-              projectStore.isCreatingProject = true;
+              projectStore.isCreatingProject = true
             }
           },
-          { 
+          {
             name: 'Open Project',
             action: async () => {
-              projectStore.isOpeningProject = true;
+              projectStore.isOpeningProject = true
             }
           },
-          { 
-            name: 'Save Project', 
+          {
+            name: 'Save Project',
             action: async () => {
               if (projectStore.currentProject) {
-                await projectStore.saveProject(projectStore.currentProject);
-                alert('Project saved');
+                await projectStore.saveProject(projectStore.currentProject)
+                alert('Project saved')
               } else {
-                alert('No project to save');
+                alert('No project to save')
               }
-            } 
+            }
           },
-          { 
-            name: 'Save Project As', 
+          {
+            name: 'Save Project As',
             action: async () => {
               if (projectStore.currentProject) {
-                await projectStore.saveProjectAs(projectStore.currentProject);
-                alert('Project saved as new');
+                await projectStore.saveProjectAs(projectStore.currentProject)
+                alert('Project saved as new')
               } else {
-                alert('No project to save');
+                alert('No project to save')
               }
-            } 
+            }
           }
         ]
       },
@@ -100,14 +102,25 @@ export default defineComponent({
           { name: 'Documentation', action: () => alert('Documentation clicked') },
           { name: 'GitHub', action: () => alert('GitHub clicked') }
         ]
+      },
+      {
+        name: 'Machines',
+        items: [
+          {
+            name: 'Manage Machines',
+            action: () => {
+              router.push('/machines')
+            }
+          }
+        ]
       }
-    ]);
+    ])
 
     return {
       menus
-    };
+    }
   }
-});
+})
 </script>
 
 <style scoped>
@@ -135,7 +148,7 @@ export default defineComponent({
 .menu-item:hover {
   background-color: #e0e0e0;
   .submenu {
-      display: block;
+    display: block;
   }
 }
 

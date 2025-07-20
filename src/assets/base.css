@@ -1,5 +1,6 @@
-/* color palette from <https://github.com/vuejs/theme> */
+/* Unified color palette */
 :root {
+  /* Base colors */
   --vt-c-white: #ffffff;
   --vt-c-white-soft: #f8f8f8;
   --vt-c-white-mute: #f2f2f2;
@@ -10,46 +11,86 @@
 
   --vt-c-indigo: #2c3e50;
 
+  /* Brand colors - used sparingly */
+  --vt-c-brand: #ff4f00;
+  --vt-c-brand-soft: rgba(255, 79, 0, 0.1);
+  --vt-c-brand-muted: rgba(255, 79, 0, 0.05);
+
+  /* Dividers */
   --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
   --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
   --vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
   --vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
 
+  /* Text colors */
   --vt-c-text-light-1: var(--vt-c-indigo);
   --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
+  --vt-c-text-light-3: rgba(60, 60, 60, 0.45);
   --vt-c-text-dark-1: var(--vt-c-white);
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+  --vt-c-text-dark-3: rgba(235, 235, 235, 0.45);
 }
 
-/* semantic color variables for this project */
+/* Semantic color variables */
 :root {
+  /* Backgrounds */
   --color-background: var(--vt-c-white);
   --color-background-soft: var(--vt-c-white-soft);
   --color-background-mute: var(--vt-c-white-mute);
 
+  /* Borders */
   --color-border: var(--vt-c-divider-light-2);
   --color-border-hover: var(--vt-c-divider-light-1);
 
+  /* Text */
   --color-heading: var(--vt-c-text-light-1);
   --color-text: var(--vt-c-text-light-1);
+  --color-text-soft: var(--vt-c-text-light-2);
+  --color-text-mute: var(--vt-c-text-light-3);
 
+  /* Interactive elements */
+  --color-link: var(--vt-c-text-light-1);
+  --color-link-hover: var(--vt-c-text-light-2);
+  --color-link-bg-hover: rgba(60, 60, 60, 0.08);
+
+  /* Brand accents - use sparingly */
+  --color-accent: var(--vt-c-brand);
+  --color-accent-soft: var(--vt-c-brand-soft);
+  --color-accent-muted: var(--vt-c-brand-muted);
+
+  /* Layout */
   --section-gap: 160px;
+  --content-gap: 1rem;
+  --border-radius: 0.5rem;
+  --border-radius-small: 0.25rem;
 }
 
+/* Dark mode overrides */
 @media (prefers-color-scheme: dark) {
   :root {
+    /* Backgrounds */
     --color-background: var(--vt-c-black);
     --color-background-soft: var(--vt-c-black-soft);
     --color-background-mute: var(--vt-c-black-mute);
 
+    /* Borders */
     --color-border: var(--vt-c-divider-dark-2);
     --color-border-hover: var(--vt-c-divider-dark-1);
 
+    /* Text */
     --color-heading: var(--vt-c-text-dark-1);
     --color-text: var(--vt-c-text-dark-2);
+    --color-text-soft: var(--vt-c-text-dark-2);
+    --color-text-mute: var(--vt-c-text-dark-3);
+
+    /* Interactive elements */
+    --color-link: var(--vt-c-text-dark-1);
+    --color-link-hover: var(--vt-c-text-dark-2);
+    --color-link-bg-hover: rgba(235, 235, 235, 0.08);
   }
 }
 
+/* Reset and base styles */
 *,
 *::before,
 *::after {
